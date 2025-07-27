@@ -59,7 +59,7 @@ export default function StatusPage() {
   const [application, setApplication] = useState<ExtendedApplication | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   
-  // COMPLETE NAVIGATION LOCKDOWN - Multi-layered defense system
+  // Simplified navigation lockdown system with proper error handling
   useEffect(() => {
     // Only apply navigation restrictions if application is actually submitted
     if (!userData?.applicationSubmitted) {
@@ -67,315 +67,211 @@ export default function StatusPage() {
     }
 
     let isLocked = true;
-    let lockdownTimer: NodeJS.Timeout;
+    let lockdownActive = false;
 
-    // Layer 1: Aggressive history manipulation
-    const floodHistory = () => {
-      if (!isLocked) return;
-      
-      // Push multiple states aggressively
-      for (let i = 0; i < 50; i++) {
+    // Safe history manipulation with error handling
+    const safeHistoryPush = () => {
+      try {
+        if (!isLocked || lockdownActive) return;
+        lockdownActive = true;
+        
+        // Add a single history entry instead of flooding
         window.history.pushState(null, "", window.location.pathname);
+        
+        setTimeout(() => {
+          lockdownActive = false;
+        }, 100);
+      } catch (error) {
+        // Silently handle history API errors
+        console.warn("History API error:", error);
       }
-      
-      // Keep flooding the history
-      lockdownTimer = setTimeout(floodHistory, 100);
     };
 
-    // Layer 2: Enhanced popstate prevention
+    // Enhanced popstate prevention with error handling
     const preventNavigation = (e: PopStateEvent) => {
-      if (!isLocked) return;
-      
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      
-      // Immediately flood history again
-      setTimeout(() => {
-        for (let i = 0; i < 20; i++) {
-          window.history.pushState(null, "", window.location.pathname);
+      try {
+        if (!isLocked) return;
+        
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        
+        // Push state safely
+        safeHistoryPush();
+        
+        // Show user-friendly message less frequently
+        if (!document.querySelector('[data-sonner-toaster]')?.querySelector('[data-type="error"]')) {
+          toast.error("Navigation blocked", {
+            description: "Your application has been submitted",
+            duration: 2000,
+            id: "navigation-blocked"
+          });
         }
-      }, 0);
-      
-      toast.error("Navigation is completely blocked", {
-        description: "Your application has been submitted - you cannot leave this page",
-        duration: 3000,
-        id: "navigation-blocked"
-      });
+      } catch (error) {
+        console.warn("Navigation prevention error:", error);
+      }
     };
 
-    // Layer 3: Override browser navigation methods
+    // Store original methods safely
     const originalPushState = window.history.pushState;
     const originalReplaceState = window.history.replaceState;
     const originalBack = window.history.back;
     const originalForward = window.history.forward;
     const originalGo = window.history.go;
 
-    window.history.pushState = function(state, title, url) {
-      if (!isLocked) return originalPushState.call(this, state, title, url);
-      if (url && url !== window.location.pathname) {
-        toast.error("Navigation blocked", { id: "nav-blocked" });
-        return;
-      }
-      return originalPushState.call(this, state, title, url);
-    };
+    // Override navigation methods with error handling
+    try {
+      window.history.pushState = function(state, title, url) {
+        if (!isLocked) return originalPushState.call(this, state, title, url);
+        if (url && url !== window.location.pathname) {
+          return;
+        }
+        return originalPushState.call(this, state, title, url);
+      };
 
-    window.history.replaceState = function(state, title, url) {
-      if (!isLocked) return originalReplaceState.call(this, state, title, url);
-      if (url && url !== window.location.pathname) {
-        toast.error("Navigation blocked", { id: "nav-blocked" });
-        return;
-      }
-      return originalReplaceState.call(this, state, title, url);
-    };
+      window.history.replaceState = function(state, title, url) {
+        if (!isLocked) return originalReplaceState.call(this, state, title, url);
+        if (url && url !== window.location.pathname) {
+          return;
+        }
+        return originalReplaceState.call(this, state, title, url);
+      };
 
-    window.history.back = function() {
-      if (!isLocked) return originalBack.call(this);
-      toast.error("Back navigation is disabled", { id: "back-blocked" });
-    };
+      window.history.back = function() {
+        if (!isLocked) return originalBack.call(this);
+        // Silent prevention
+      };
 
-    window.history.forward = function() {
-      if (!isLocked) return originalForward.call(this);
-      toast.error("Forward navigation is disabled", { id: "forward-blocked" });
-    };
+      window.history.forward = function() {
+        if (!isLocked) return originalForward.call(this);
+        // Silent prevention
+      };
 
-    window.history.go = function(delta?: number) {
-      if (!isLocked) return originalGo.call(this, delta);
-      toast.error("Navigation is disabled", { id: "go-blocked" });
-    };
+      window.history.go = function(delta?: number) {
+        if (!isLocked) return originalGo.call(this, delta);
+        // Silent prevention
+      };
+    } catch (error) {
+      console.warn("Error overriding history methods:", error);
+    }
 
-    // Layer 4: Comprehensive event blocking with logout exceptions
-    const blockAllNavigation = (e: Event) => {
-      if (!isLocked) return;
-      
-      const target = e.target as HTMLElement;
-      
-      // Check if this is a logout-related interaction
-      const isLogoutInteraction = target.closest('[data-logout="true"]') || 
-                                 target.closest('[data-radix-popper-content-wrapper]') || // Dropdown content
-                                 target.closest('[role="dialog"]') || // Dialog/modal
-                                 target.closest('button[data-state]') || // Radix UI buttons
-                                 target.closest('[data-radix-menu-content]') || // Menu content
-                                 target.closest('.lucide-log-out') ||
-                                 (target.textContent && target.textContent.toLowerCase().includes('log out')) ||
-                                 target.closest('button')?.textContent?.toLowerCase().includes('log out');
-      
-      if (isLogoutInteraction) {
-        // Allow logout interactions to proceed normally
-        return;
-      }
-      
-      // Only block navigation-related events, not UI interactions
-      if (e.type === 'beforeunload') {
-        const beforeUnloadEvent = e as BeforeUnloadEvent;
-        beforeUnloadEvent.returnValue = "You cannot leave this page - your application has been submitted.";
-        return "You cannot leave this page - your application has been submitted.";
-      }
-      
-      // Don't block general click events that might be needed for UI
-      if (e.type === 'click' || e.type === 'mousedown' || e.type === 'mouseup') {
-        return;
-      }
-      
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      e.stopPropagation();
-      
-      return false;
-    };
-
-    // Layer 5: Enhanced keyboard blocking
-    const blockKeyboardNavigation = (e: KeyboardEvent) => {
-      if (!isLocked) return;
-
-      const blockedKeys = [
-        'F5', 'F12', 'Escape',
-        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-        'Home', 'End', 'PageUp', 'PageDown'
-      ];
-
-      const blockedCombos = [
-        { ctrl: true, key: 'r' }, { meta: true, key: 'r' }, // Refresh
-        { ctrl: true, key: 'w' }, { meta: true, key: 'w' }, // Close tab
-        { ctrl: true, key: 't' }, { meta: true, key: 't' }, // New tab
-        { ctrl: true, key: 'n' }, { meta: true, key: 'n' }, // New window
-        { ctrl: true, key: 'l' }, { meta: true, key: 'l' }, // Address bar
-        { ctrl: true, key: 'h' }, { meta: true, key: 'h' }, // History
-        { ctrl: true, key: 'j' }, { meta: true, key: 'j' }, // Downloads
-        { ctrl: true, key: 'u' }, { meta: true, key: 'u' }, // View source
-        { alt: true, key: 'ArrowLeft' }, { alt: true, key: 'ArrowRight' }, // Alt+arrows
-        { ctrl: true, key: 'Tab' }, { meta: true, key: 'Tab' }, // Switch tabs
-        { ctrl: true, shift: true, key: 'Delete' }, // Clear data
-      ];
-
-      // Check for blocked single keys
-      if (blockedKeys.includes(e.key)) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        toast.error(`${e.key} key is disabled`, { id: "key-blocked" });
-        return false;
-      }
-
-      // Check for blocked combinations
-      for (const combo of blockedCombos) {
-        if ((combo.ctrl && e.ctrlKey) || (combo.meta && e.metaKey) || (combo.alt && e.altKey)) {
-          if (combo.key === e.key || combo.shift === e.shiftKey) {
+    // Simplified event blocking
+    const blockNavigation = (e: Event) => {
+      try {
+        if (!isLocked) return;
+        
+        const target = e.target as HTMLElement;
+        
+        // Allow logout functionality
+        const isLogoutElement = target.closest('[data-logout="true"]') || 
+                               target.closest('button')?.textContent?.toLowerCase().includes('log out') ||
+                               target.closest('[role="menuitem"]')?.textContent?.toLowerCase().includes('log out');
+        
+        if (isLogoutElement) {
+          return;
+        }
+        
+        // Handle beforeunload
+        if (e.type === 'beforeunload') {
+          const beforeUnloadEvent = e as BeforeUnloadEvent;
+          beforeUnloadEvent.returnValue = "Your application has been submitted.";
+          return "Your application has been submitted.";
+        }
+        
+        // Block navigation for links
+        if (target.tagName === 'A' || target.closest('a')) {
+          const link = target.tagName === 'A' ? target as HTMLAnchorElement : target.closest('a');
+          const href = link?.getAttribute('href');
+          
+          if (href && (href.startsWith('http') || href.startsWith('mailto:'))) {
+            // Allow external links
+            link?.setAttribute('target', '_blank');
+            link?.setAttribute('rel', 'noopener noreferrer');
+            return;
+          } else if (href && !href.startsWith('#')) {
             e.preventDefault();
             e.stopImmediatePropagation();
-            toast.error("Keyboard shortcut disabled", { id: "combo-blocked" });
-            return false;
           }
         }
+      } catch (error) {
+        console.warn("Event blocking error:", error);
       }
-
-      return true;
     };
 
-    // Layer 6: Mouse/touch event blocking
-    const blockMouseNavigation = (e: Event) => {
-      if (!isLocked) return;
+    // Keyboard navigation blocking with error handling
+    const blockKeyboard = (e: KeyboardEvent) => {
+      try {
+        if (!isLocked) return;
 
-      const target = e.target as HTMLElement;
-      
-      // Allow logout functionality - check if click is on logout elements
-      const isLogoutElement = target.closest('[data-logout="true"]') || 
-                             target.closest('button[aria-label*="logout"]') ||
-                             target.closest('button:has(svg[data-lucide="log-out"])') ||
-                             target.textContent?.toLowerCase().includes('log out') ||
-                             target.closest('[role="menuitem"]')?.textContent?.toLowerCase().includes('log out');
-      
-      if (isLogoutElement) {
-        // Allow logout clicks to proceed
-        return;
-      }
-      
-      // Block all link clicks except external ones and logout
-      if (target.tagName === 'A' || target.closest('a')) {
-        const link = target.tagName === 'A' ? target as HTMLAnchorElement : target.closest('a');
-        const href = link?.getAttribute('href');
-        
-        if (href && (href.startsWith('http') || href.startsWith('mailto:'))) {
-          // Allow external links but force new tab
-          link?.setAttribute('target', '_blank');
-          link?.setAttribute('rel', 'noopener noreferrer');
-          return;
-        } else if (href && !href.startsWith('#')) {
-          // Block internal navigation
+        const blockedKeys = ['F5', 'F12'];
+        const blockedCombos = [
+          { ctrl: true, key: 'r' },
+          { meta: true, key: 'r' },
+          { ctrl: true, key: 'w' },
+          { meta: true, key: 'w' },
+          { ctrl: true, key: 'l' },
+          { meta: true, key: 'l' }
+        ];
+
+        if (blockedKeys.includes(e.key)) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          toast.error("Internal links are disabled", { id: "link-blocked" });
-          return false;
+          return;
         }
-      }
 
-      // Block context menu
-      if (e.type === 'contextmenu') {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        toast.error("Right-click menu is disabled", { id: "context-blocked" });
-        return false;
-      }
-
-      // Block drag operations that might navigate
-      if (e.type.startsWith('drag')) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        return false;
+        for (const combo of blockedCombos) {
+          if ((combo.ctrl && e.ctrlKey) || (combo.meta && e.metaKey)) {
+            if (combo.key === e.key) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Keyboard blocking error:", error);
       }
     };
 
-    // Layer 7: Focus management
-    const preventFocusNavigation = (e: FocusEvent) => {
-      if (!isLocked) return;
-      
-      // Prevent focus on address bar or other browser UI
-      if (!document.body.contains(e.target as Node)) {
-        e.preventDefault();
-        document.body.focus();
-      }
-    };
-
-    // Start the lockdown
-    floodHistory();
+    // Add initial history state
+    safeHistoryPush();
     
-    // Add all event listeners with capture=true for maximum priority
-    const targetedEvents = [
-      'popstate', 'beforeunload', 'unload', 'pagehide'
-    ];
-    
-    const uiEvents = [
-      'keydown', 'keyup', 'keypress'
-    ];
+    // Add event listeners with error handling
+    try {
+      window.addEventListener('popstate', preventNavigation, true);
+      window.addEventListener('beforeunload', blockNavigation, true);
+      document.addEventListener('click', blockNavigation, true);
+      document.addEventListener('keydown', blockKeyboard, true);
+    } catch (error) {
+      console.warn("Error adding event listeners:", error);
+    }
 
-    // Add navigation blocking events
-    targetedEvents.forEach(eventType => {
-      window.addEventListener(eventType, preventNavigation as EventListener, true);
-      window.addEventListener(eventType, blockAllNavigation as EventListener, true);
-    });
-
-    // Add keyboard blocking events
-    uiEvents.forEach(eventType => {
-      window.addEventListener(eventType, blockKeyboardNavigation as EventListener, true);
-      document.addEventListener(eventType, blockKeyboardNavigation as EventListener, true);
-    });
-
-    // Add targeted mouse event blocking (only for specific navigation events)
-    document.addEventListener('click', blockMouseNavigation as EventListener, true);
-    document.addEventListener('contextmenu', blockMouseNavigation as EventListener, true);
-    
-    // Layer 8: Periodic history flooding and state monitoring
-    const monitorAndMaintain = () => {
-      if (!isLocked) return;
-      
-      // Continuously flood history
-      for (let i = 0; i < 10; i++) {
-        window.history.pushState(null, "", window.location.pathname);
-      }
-      
-      // Ensure we're still on the right page
-      if (window.location.pathname !== '/status') {
-        window.location.replace('/status');
-      }
-      
-      setTimeout(monitorAndMaintain, 50);
-    };
-
-    monitorAndMaintain();
-
-    // Show lockdown warning
-    toast.error("🔒 Page Locked - Application Submitted", {
-      description: "All navigation has been disabled. You cannot leave this page.",
-      duration: 8000,
-      id: "page-locked-warning"
+    // Show a single notification
+    toast.info("Page locked - Application submitted", {
+      description: "Navigation has been restricted",
+      duration: 3000,
+      id: "page-locked"
     });
 
     // Cleanup function
     return () => {
       isLocked = false;
       
-      if (lockdownTimer) {
-        clearTimeout(lockdownTimer);
+      try {
+        // Remove event listeners
+        window.removeEventListener('popstate', preventNavigation, true);
+        window.removeEventListener('beforeunload', blockNavigation, true);
+        document.removeEventListener('click', blockNavigation, true);
+        document.removeEventListener('keydown', blockKeyboard, true);
+        
+        // Restore original methods
+        window.history.pushState = originalPushState;
+        window.history.replaceState = originalReplaceState;
+        window.history.back = originalBack;
+        window.history.forward = originalForward;
+        window.history.go = originalGo;
+      } catch (error) {
+        console.warn("Cleanup error:", error);
       }
-      
-      // Remove all event listeners
-      targetedEvents.forEach(eventType => {
-        window.removeEventListener(eventType, preventNavigation as EventListener, true);
-        window.removeEventListener(eventType, blockAllNavigation as EventListener, true);
-      });
-      
-      uiEvents.forEach(eventType => {
-        window.removeEventListener(eventType, blockKeyboardNavigation as EventListener, true);
-        document.removeEventListener(eventType, blockKeyboardNavigation as EventListener, true);
-      });
-      
-      document.removeEventListener('click', blockMouseNavigation as EventListener, true);
-      document.removeEventListener('contextmenu', blockMouseNavigation as EventListener, true);
-      
-      // Restore original methods
-      window.history.pushState = originalPushState;
-      window.history.replaceState = originalReplaceState;
-      window.history.back = originalBack;
-      window.history.forward = originalForward;
-      window.history.go = originalGo;
     };
   }, [userData?.applicationSubmitted]);
   
@@ -390,16 +286,16 @@ export default function StatusPage() {
         console.error("Error fetching application:", error);
         
         // User-friendly error messages without exposing Firebase details
-        if (error.code === 'permission-denied') {
-          toast.error("You don't have permission to access this application", {
+        if (error?.code === 'permission-denied') {
+          toast.error("Unable to access application data", {
             id: "status-permission-error"
           });
-        } else if (error.code === 'not-found') {
-          toast.error("Application not found. Please complete your application first", {
+        } else if (error?.code === 'not-found') {
+          toast.error("Application not found", {
             id: "status-not-found-error"
           });
         } else {
-          toast.error("Unable to load your application. Please try again", {
+          toast.error("Unable to load application data", {
             id: "status-fetch-error"
           });
         }
