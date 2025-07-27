@@ -164,6 +164,9 @@ export default function Home() {
                 width={32} 
                 height={32} 
                 className="rounded-lg shadow-lg"
+                priority={true}
+                quality={85}
+                sizes="32px"
               />
             </Link>
             <div className="flex items-center gap-3">
@@ -216,6 +219,11 @@ export default function Home() {
                 width={110} 
                 height={110} 
                 className="rounded-2xl shadow-lg mb-6 border border-white/30 dark:border-gray-700/40"
+                priority={true}
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTEwIiBoZWlnaHQ9IjExMCIgdmlld0JveD0iMCAwIDExMCAxMTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMTAiIGhlaWdodD0iMTEwIiBmaWxsPSIjZjNmNGY2Ii8+Cjwvc3ZnPg=="
+                quality={90}
+                sizes="(max-width: 768px) 110px, 110px"
               />
             </Link>
             

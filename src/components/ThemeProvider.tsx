@@ -16,9 +16,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
-    if (saved) setTheme(saved);
-    else if (window.matchMedia("(prefers-color-scheme: dark)").matches) setTheme("dark");
-    else setTheme("light");
+    if (saved) {
+      setTheme(saved);
+    } else {
+      // Default to dark mode instead of checking system preference
+      setTheme("dark");
+    }
   }, []);
 
   useEffect(() => {
@@ -40,4 +43,4 @@ export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error("useTheme must be used within ThemeProvider");
   return ctx;
-} 
+}
