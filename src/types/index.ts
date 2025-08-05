@@ -258,7 +258,7 @@ export const DEPARTMENT_INFO: Department[] = [
   },
   { 
     id: 'social-media', 
-    name: 'Social Media & Photography', 
+    name: 'Social Media', 
     description: 'Social media management, content creation, and community engagement.',
     responsibilities: [
       'Manage club social media accounts',
