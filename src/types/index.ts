@@ -171,7 +171,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'dev', 
     name: 'Dev', 
-    description: 'Software development, web development, and app development.',
+    description: 'Software Development, Web Development, App Development and UI/UX.',
     responsibilities: [
       'Build and maintain web applications',
       'Develop mobile applications',
@@ -182,7 +182,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'opensource', 
     name: 'Open Source & Research', 
-    description: 'Contributing to open source projects and conducting research.',
+    description: 'Contributing to Open Source -Projects and Conducting Research.',
     responsibilities: [
       'Contribute to open source projects',
       'Conduct research on new technologies',
@@ -193,7 +193,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'gamedev', 
     name: 'Game Dev', 
-    description: 'Game design, development, and graphics programming.',
+    description: 'Game Design, Development, and Graphics Programming.',
     responsibilities: [
       'Design and develop games',
       'Create game assets and mechanics',
@@ -204,7 +204,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'cybersec', 
     name: 'CyberSec & Blockchain', 
-    description: 'Cybersecurity, blockchain technology, and secure applications.',
+    description: 'Cybersecurity, Blockchain Technology, and Secure Applications.',
     responsibilities: [
       'Analyze and improve application security',
       'Develop blockchain-based solutions',
@@ -215,7 +215,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'robotics', 
     name: 'Robotics & IoT', 
-    description: 'Robotics, Internet of Things, and embedded systems.',
+    description: 'Robotics, Internet of Things, and Embedded Systems.',
     responsibilities: [
       'Build and program robots',
       'Develop IoT applications',
@@ -225,7 +225,7 @@ export const DEPARTMENT_INFO: Department[] = [
   },
   { 
     id: 'events', 
-    name: 'Event Ops & Management', 
+    name: 'Management', 
     description: 'Planning, organizing, and managing club events and workshops.',
     responsibilities: [
       'Plan and organize club events',
@@ -236,8 +236,8 @@ export const DEPARTMENT_INFO: Department[] = [
   },
   { 
     id: 'design', 
-    name: 'Design & Content', 
-    description: 'UI/UX design, graphic design, and content creation.',
+    name: 'Design', 
+    description: 'Poster Designing, Grid Post and Banner Designing, Canva & Figma, Motion poster and Graphic Designing.',
     responsibilities: [
       'Create user interfaces for applications',
       'Design graphics and visual content',
@@ -259,7 +259,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'social-media', 
     name: 'Social Media', 
-    description: 'Social media management, content creation, and community engagement.',
+    description: 'Social Media Management, Content Creation, Photography, Video Editing, Digital Marketing, and Community Engagement.',
     responsibilities: [
       'Manage club social media accounts',
       'Create engaging social media content',
