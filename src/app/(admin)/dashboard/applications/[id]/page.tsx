@@ -111,6 +111,7 @@ interface FormField {
   type: string;
   required: boolean;
   departmentId: string;
+  order?: number;
   [key: string]: unknown;
 }
 

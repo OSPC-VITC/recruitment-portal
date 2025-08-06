@@ -59,6 +59,7 @@ export default function AdminLoginPage() {
     
     try {
       // Use the login function from AdminAuthContext
+      console.log("Attempting login with:", { email, passwordLength: password.length });
       const success = await login(email, password);
       
       if (success) {

@@ -60,7 +60,7 @@ const DEPARTMENT_NAMES: Record<string, string> = {
   "game-dev": "Game Development",
   "cybersec": "Cybersecurity",
   "robotics": "Robotics & IoT",
-  "events": "Events",
+  "events": "Management",
   "design": "Design",
   "marketing": "Marketing",
   "social-media": "Social Media"

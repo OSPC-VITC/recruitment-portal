@@ -49,7 +49,8 @@ import {
   deleteDoc, 
   query,
   where,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from "firebase/firestore";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -66,6 +67,7 @@ interface FormField {
   helperText?: string;
   options?: string[];
   departmentId: string;
+  order: number; // New field for ordering questions
   createdAt?: any;
   updatedAt?: any;
 }
@@ -88,12 +90,20 @@ export default function AdminQuestionsPage() {
     placeholder: "",
     required: true,
     helperText: "",
-    departmentId: ""
+    departmentId: "",
+    order: 1 // Default order value, will be updated when fields load
   });
   
   // Edit field
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<FormField | null>(null);
+  
+  // Helper function to get the next order number
+  const getNextOrderNumber = () => {
+    if (formFields.length === 0) return 1;
+    const maxOrder = Math.max(...formFields.map(f => f.order).filter(o => o !== undefined));
+    return maxOrder + 1;
+  };
   
   // Initialize available departments based on user role
   useEffect(() => {
@@ -133,10 +143,24 @@ export default function AdminQuestionsPage() {
           ...doc.data()
         })) as FormField[];
         
-        // Sort fields by some consistent order
-        fieldsData.sort((a, b) => a.label.localeCompare(b.label));
+        // Sort fields by order, then by label as fallback
+        fieldsData.sort((a, b) => {
+          // If both have order field, sort by order
+          if (a.order !== undefined && b.order !== undefined) {
+            return a.order - b.order;
+          }
+          // If only one has order, prioritize it
+          if (a.order !== undefined) return -1;
+          if (b.order !== undefined) return 1;
+          // Fallback to alphabetical for old fields without order
+          return a.label.localeCompare(b.label);
+        });
         
         setFormFields(fieldsData);
+        
+        // Update the newField order to be next in sequence
+        const nextOrder = fieldsData.length === 0 ? 1 : Math.max(...fieldsData.map(f => f.order).filter(o => o !== undefined)) + 1;
+        setNewField(prev => ({ ...prev, order: nextOrder }));
       } catch (error) {
         console.error("Error fetching form fields:", error);
         toast.error("Unable to load form questions", { id: "admin-questions-load-error" });
@@ -154,8 +178,9 @@ export default function AdminQuestionsPage() {
   const handleDepartmentChange = (departmentId: string) => {
     if (isCoreTeam) {
       setActiveDepartment(departmentId);
-      // Update the new field's department too
-      setNewField(prev => ({ ...prev, departmentId }));
+      // Update the new field's department and reset order
+      const nextOrder = getNextOrderNumber();
+      setNewField(prev => ({ ...prev, departmentId, order: nextOrder }));
     }
   };
   
@@ -188,7 +213,8 @@ export default function AdminQuestionsPage() {
         placeholder: "",
         required: true,
         helperText: "",
-        departmentId: activeDepartment
+        departmentId: activeDepartment,
+        order: getNextOrderNumber() // Set order to be next in sequence
       });
       
       setIsDialogOpen(false);
@@ -269,6 +295,43 @@ export default function AdminQuestionsPage() {
     }
   };
   
+  // Migration function to add order field to existing questions
+  const handleMigrateOrders = async () => {
+    if (!confirm("This will assign default order numbers to all questions that don't have them. Continue?")) return;
+    
+    setSaving(true);
+    try {
+      const fieldsToUpdate = formFields.filter(f => f.order === undefined);
+      if (fieldsToUpdate.length === 0) {
+        toast.info("All questions already have order numbers", { id: "migration-not-needed" });
+        return;
+      }
+      
+      const batch = writeBatch(db);
+      fieldsToUpdate.forEach((field, index) => {
+        const fieldRef = doc(db, "formFields", field.id);
+        batch.update(fieldRef, { 
+          order: index + 1,
+          updatedAt: serverTimestamp()
+        });
+      });
+      
+      await batch.commit();
+      
+      // Update local state
+      setFormFields(prev => prev.map((field, index) => 
+        field.order === undefined ? { ...field, order: index + 1 } : field
+      ));
+      
+      toast.success(`Assigned order numbers to ${fieldsToUpdate.length} questions`, { id: "migration-success" });
+    } catch (error) {
+      console.error("Error migrating orders:", error);
+      toast.error("Failed to migrate question orders", { id: "migration-error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+  
   // Get department name from ID
   const getDepartmentName = (id: string) => {
     return DEPARTMENTS[id as keyof typeof DEPARTMENTS] || id;
@@ -300,12 +363,25 @@ export default function AdminQuestionsPage() {
             </CardDescription>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> Add Question
+          <div className="flex gap-2">
+            {/* Show migration button if there are fields without order */}
+            {formFields.some(f => f.order === undefined) && (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={handleMigrateOrders}
+                disabled={saving}
+              >
+                <FileText className="mr-2 h-4 w-4" /> Fix Order
               </Button>
-            </DialogTrigger>
+            )}
+            
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> Add Question
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Add New Question</DialogTitle>
@@ -363,6 +439,21 @@ export default function AdminQuestionsPage() {
                   />
                 </div>
                 
+                <div className="grid gap-2">
+                  <Label htmlFor="question-order">Question Order</Label>
+                  <Input
+                    id="question-order"
+                    type="number"
+                    min="1"
+                    placeholder="Enter question order (1, 2, 3...)"
+                    value={newField.order}
+                    onChange={(e) => setNewField({ ...newField, order: parseInt(e.target.value) || 1 })}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Questions will appear in this order. Lower numbers appear first.
+                  </p>
+                </div>
+                
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -406,6 +497,7 @@ export default function AdminQuestionsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </CardHeader>
         
         <CardContent>
@@ -512,6 +604,23 @@ export default function AdminQuestionsPage() {
                           />
                         </div>
                         
+                        <div>
+                          <Label htmlFor={`edit-order-${field.id}`}>Question Order</Label>
+                          <Input
+                            id={`edit-order-${field.id}`}
+                            type="number"
+                            min="1"
+                            value={editingField?.order || 1}
+                            onChange={(e) => 
+                              setEditingField(prev => prev ? { ...prev, order: parseInt(e.target.value) || 1 } : null)
+                            }
+                            className="mt-1"
+                          />
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Questions will appear in this order. Lower numbers appear first.
+                          </p>
+                        </div>
+                        
                         <div className="flex items-center space-x-2">
                           <input
                             type="checkbox"
@@ -547,7 +656,12 @@ export default function AdminQuestionsPage() {
                       <div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <h4 className="font-medium">{field.label}</h4>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded text-gray-600">
+                                #{field.order || 'N/A'}
+                              </span>
+                              <h4 className="font-medium">{field.label}</h4>
+                            </div>
                             {field.required && (
                               <Badge variant="outline" className="text-red-500 border-red-200">Required</Badge>
                             )}

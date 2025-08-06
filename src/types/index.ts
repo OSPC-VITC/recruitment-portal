@@ -182,7 +182,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'opensource', 
     name: 'Open Source & Research', 
-    description: 'Contributing to Open Source -Projects and Conducting Research.',
+    description: 'Contributing to Open Source Projects and Conducting Research.',
     responsibilities: [
       'Contribute to open source projects',
       'Conduct research on new technologies',
@@ -193,7 +193,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'gamedev', 
     name: 'Game Dev', 
-    description: 'Game Design, Development, and Graphics Programming.',
+    description: 'Game Design, Development, and 3D Modeling.',
     responsibilities: [
       'Design and develop games',
       'Create game assets and mechanics',
@@ -204,7 +204,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'cybersec', 
     name: 'CyberSec & Blockchain', 
-    description: 'Cybersecurity, Blockchain Technology, and Secure Applications.',
+    description: 'Cybersecurity, CTF, Pentesting, Blockchain Technology, and Secure Applications.',
     responsibilities: [
       'Analyze and improve application security',
       'Develop blockchain-based solutions',
@@ -215,7 +215,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'robotics', 
     name: 'Robotics & IoT', 
-    description: 'Robotics, Internet of Things, and Embedded Systems.',
+    description: 'Robotics, Internet of Things, Hardware Integration and Embedded Systems.',
     responsibilities: [
       'Build and program robots',
       'Develop IoT applications',

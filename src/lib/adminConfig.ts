@@ -49,9 +49,11 @@ export function findAdminByEmail(email: string): AdminUser | undefined {
 // Function to verify admin credentials
 export function verifyAdminCredentials(email: string, password: string): AdminUser | null {
   const admin = findAdminByEmail(email);
+  
   if (admin && admin.password === password) {
     return admin;
   }
+  
   return null;
 }
 

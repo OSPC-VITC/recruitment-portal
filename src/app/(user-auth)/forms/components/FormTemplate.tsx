@@ -27,6 +27,7 @@ interface FormField {
   required: boolean;
   helperText?: string;
   departmentId: string;
+  order: number;
 }
 
 // Define the DynamicFieldValue interface
@@ -101,7 +102,17 @@ export function FormTemplate({
           })) as FormField[];
           
           // console.log(`Loaded ${fields.length} fields for department: ${departmentId}`);
-          fields.sort((a, b) => a.label.localeCompare(b.label));
+          fields.sort((a, b) => {
+            // If both have order field, sort by order
+            if (a.order !== undefined && b.order !== undefined) {
+              return a.order - b.order;
+            }
+            // If only one has order, prioritize it
+            if (a.order !== undefined) return -1;
+            if (b.order !== undefined) return 1;
+            // Fallback to alphabetical for old fields without order
+            return a.label.localeCompare(b.label);
+          });
           setFormFields(fields);
         } else {
           // console.log(`No form fields found for department: ${departmentId}`);
