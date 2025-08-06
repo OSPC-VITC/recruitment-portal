@@ -160,7 +160,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'ai-ml', 
     name: 'AI & ML', 
-    description: 'Machine Learning, Deep Learning, GenAI, Data science',
+    description: 'Machine Learning, Deep Learning, GenAI, Data science.',
     responsibilities: [
       'Develop machine learning models',
       'Work on AI-powered applications',
@@ -204,7 +204,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'cybersec', 
     name: 'CyberSec & Blockchain', 
-    description: 'Cybersecurity, CTF, Pentesting, DApp, Consensus Algo and Blockchain Network',
+    description: 'Cybersecurity, CTF, Pentesting, DApp, Consensus Algo and Blockchain Network.',
     responsibilities: [
       'Analyze and improve application security',
       'Develop blockchain-based solutions',
@@ -226,7 +226,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'events', 
     name: 'Management', 
-    description: 'Planning, organizing, and managing club events and workshops.',
+    description: 'Event Planning, Sponsorships, Operations and Logistics.',
     responsibilities: [
       'Plan and organize club events',
       'Manage logistics and operations',
@@ -237,7 +237,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'design', 
     name: 'Design', 
-    description: 'Poster Designing, Grid Post and Banner Designing, Canva & Figma, Motion poster and Graphic Designing.',
+    description: 'Graphic Design, Canva, Branding and Motion Design.',
     responsibilities: [
       'Create user interfaces for applications',
       'Design graphics and visual content',
@@ -246,26 +246,26 @@ export const DEPARTMENT_INFO: Department[] = [
     ]
   },
   { 
-    id: 'marketing', 
-    name: 'Marketing', 
-    description: 'Marketing strategies, campaigns, and outreach programs.',
-    responsibilities: [
-      'Develop marketing strategies',
-      'Create promotional campaigns',
-      'Analyze marketing metrics',
-      'Coordinate outreach programs'
-    ]
-  },
-  { 
     id: 'social-media', 
     name: 'Social Media', 
-    description: 'Social Media Management, Content Creation, Photography, Video Editing, Digital Marketing, and Community Engagement.',
+    description: 'Video Editing, Photography and Content Creation.',
     responsibilities: [
       'Manage club social media accounts',
       'Create engaging social media content',
       'Build and engage with online community',
       'Track and analyze social media performance',
       'Capture and edit photos for events'
+    ]
+  },
+  { 
+    id: 'marketing', 
+    name: 'Marketing', 
+    description: 'Campaigning, Digital Marketing and SM Strategy.',
+    responsibilities: [
+      'Develop marketing strategies',
+      'Create promotional campaigns',
+      'Analyze marketing metrics',
+      'Coordinate outreach programs'
     ]
   }
 ]; 
