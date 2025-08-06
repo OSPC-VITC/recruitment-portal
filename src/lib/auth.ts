@@ -41,6 +41,9 @@ export const registerUser = async (
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
+    // Send email verification
+    await sendEmailVerification(user);
+    
     // Store user data in Firestore
     await setDoc(doc(db, "users", user.uid), {
       ...userData,
@@ -166,4 +169,38 @@ export const isAdmin = async (uid: string): Promise<boolean> => {
     console.error("Error checking admin status:", error);
     return false;
   }
+};
+
+// Resend email verification
+export const resendEmailVerification = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user is currently signed in');
+    }
+    
+    if (user.emailVerified) {
+      throw new Error('Email is already verified');
+    }
+    
+    await sendEmailVerification(user);
+  } catch (error: any) {
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many verification emails sent. Please try again later');
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Network connection issue. Please check your internet connection');
+    } else {
+      throw new Error(error.message || 'Unable to send verification email. Please try again');
+    }
+  }
+};
+
+// Check if current user's email is verified
+export const checkEmailVerification = async (): Promise<boolean> => {
+  const user = auth.currentUser;
+  if (!user) return false;
+  
+  // Reload user to get the latest email verification status
+  await user.reload();
+  return user.emailVerified;
 }; 

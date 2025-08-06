@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginFormData } from "@/lib/schemas";
-import { signIn, resetPassword, getUserDocument } from "@/lib/auth";
+import { signIn, resetPassword, getUserDocument, checkEmailVerification } from "@/lib/auth";
 import { Eye, EyeOff } from "lucide-react";
 import Navbar from "@/components/ui/navbar";
 import ParticlesBackground from "@/components/ParticlesBackground";
@@ -83,6 +83,17 @@ function LoginForm() {
     
     try {
       await signIn(data.email, data.password);
+      
+      // Check email verification status
+      const isEmailVerified = await checkEmailVerification();
+      if (!isEmailVerified) {
+        setSuccessMessage("Login successful! Please verify your email to continue.");
+        setTimeout(() => {
+          router.push("/verify-email");
+        }, 1500);
+        return;
+      }
+      
       setSuccessMessage("Login successful! Redirecting...");
       
       // Check if the user has already submitted their application

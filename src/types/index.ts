@@ -160,7 +160,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'ai-ml', 
     name: 'AI & ML', 
-    description: 'Artificial Intelligence and Machine Learning research and applications.',
+    description: 'Machine Learning, Deep Learning, GenAI, Data science',
     responsibilities: [
       'Develop machine learning models',
       'Work on AI-powered applications',
@@ -204,7 +204,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'cybersec', 
     name: 'CyberSec & Blockchain', 
-    description: 'Cybersecurity, CTF, Pentesting, Blockchain Technology, and Secure Applications.',
+    description: 'Cybersecurity, CTF, Pentesting, DApp, Consensus Algo and Blockchain Network',
     responsibilities: [
       'Analyze and improve application security',
       'Develop blockchain-based solutions',

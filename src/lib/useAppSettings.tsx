@@ -21,9 +21,9 @@ export interface ApplicationSettings {
 
 // Default settings
 export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
-  portalName: "OSPC Recruitment Portal",
-  welcomeMessage: "Welcome to the OSPC Recruitment Portal. Apply to join our tech club at VIT Chennai!",
-  contactEmail: "contact@ospcvitc.club",
+  portalName: "Open Source Programming Club\n  Recruitment Portal",
+  welcomeMessage: "Welcome to the OSPC Recruitment Portal.\nApply to join us!",
+  contactEmail: "opensourceprogrammingclub.vitc@gmail.com",
   applicationClosed: false,
 };
 

@@ -104,12 +104,12 @@ function RegistrationForm() {
       });
       
       // Show success message
-      setSuccessMessage("Account created successfully! Redirecting...");
+      setSuccessMessage("Account created successfully! Please check your email for verification.");
       
-      // Redirect to verification page
+      // Redirect to email verification page
       setTimeout(() => {
-        router.push("/user-dashboard");
-      }, 1500);
+        router.push("/verify-email");
+      }, 2000);
     } catch (error: any) {
       console.error("Registration error:", error);
       setError(error.message || "Unable to create account. Please try again");

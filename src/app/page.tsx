@@ -25,7 +25,7 @@ function LandingContent() {
       <div className="mb-0 md:mb-2 w-full">
         {/* Logo removed from here as it's now in the main header */}
         <h1 className="font-bold text-2xl md:text-4xl lg:text-5xl mb-2 md:mb-3 bg-gradient-to-r from-primary via-purple-600 to-blue-600 text-transparent bg-clip-text leading-tight font-sans">
-          {isLoaded ? portalName : "OSPC Recruitment Portal"}
+          {isLoaded ? portalName : "Open Source Programming Club\n Recruitment Portal"}
         </h1>
         <p className="text-sm md:text-lg text-gray-600 dark:text-gray-300 max-w-md leading-relaxed font-sans">
           {isLoaded ? welcomeMessage : "Join our community of innovators, creators, and future leaders. Apply to departments that match your interests and skills."}
@@ -41,7 +41,7 @@ function LandingContent() {
           </div>
           <h2 className="font-semibold text-base md:text-xl text-gray-900 dark:text-gray-100 font-sans">Our Mission</h2>
           <p className="text-xs md:text-base text-gray-600 dark:text-gray-300 leading-relaxed font-sans">
-          To empower students through open-source collaboration, fostering innovation, hands-on learning, and a strong tech community.
+          To make open-source contribution simple and approachable for every student. Through workshops, team-based projects, and peer support, we help members gain real skills in both technical and non-technical roles. By focusing on collaboration and consistent practice, we aim to bridge the gap between learning and doing.
           </p>
         </div>
         
@@ -55,23 +55,23 @@ function LandingContent() {
           <ul className="text-xs md:text-base text-gray-600 dark:text-gray-300 space-y-1 md:space-y-2 font-sans">
             <li className="flex items-center gap-1.5 md:gap-2">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gradient-to-r from-green-500 to-green-600 shadow-sm flex-shrink-0"></span>
-              <span className="leading-relaxed">Openness: We share, learn, and grow together</span>
+              <span className="leading-relaxed">Freshers First: Zero gatekeeping. Total support.</span>
             </li>
             <li className="flex items-center gap-1.5 md:gap-2">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gradient-to-r from-green-500 to-green-600 shadow-sm flex-shrink-0"></span>
-              <span className="leading-relaxed">Collaboration: Teamwork powers everything we do</span>
+              <span className="leading-relaxed">Build to Learn: Real projects. Real skills.</span>
             </li>
             <li className="flex items-center gap-1.5 md:gap-2">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gradient-to-r from-green-500 to-green-600 shadow-sm flex-shrink-0"></span>
-              <span className="leading-relaxed">Innovation: We build creative, impactful solutions</span>
+              <span className="leading-relaxed">Open to All: Tech or non-tech, everyone’s welcome.</span>
             </li>
             <li className="flex items-center gap-1.5 md:gap-2">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gradient-to-r from-green-500 to-green-600 shadow-sm flex-shrink-0"></span>
-              <span className="leading-relaxed">Hands-on Learning: Real skills through real projects</span>
+              <span className="leading-relaxed">Team-Driven: We grow by working together.</span>
             </li>
             <li className="flex items-center gap-1.5 md:gap-2">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gradient-to-r from-green-500 to-green-600 shadow-sm flex-shrink-0"></span>
-              <span className="leading-relaxed">Community: Everyone's welcome, everyone contributes</span>
+              <span className="leading-relaxed">Progress Over Perfect: Start small. Ship fast. Improve constantly.</span>
             </li>
           </ul>
         </div>
@@ -84,18 +84,14 @@ function LandingContent() {
           </svg>
         </div>
         <h2 className="font-semibold text-base md:text-xl text-gray-900 dark:text-gray-100 mb-3 font-sans">Join Our Departments</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 py-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 py-1">
           <div className="p-3 md:p-4 bg-white/15 dark:bg-gray-800/15 backdrop-blur-[2px] rounded-lg border border-white/30 dark:border-gray-700/40 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-            <h3 className="font-semibold text-primary dark:text-gray-100 mb-1 md:mb-2 font-sans text-xs md:text-sm">Technology</h3>
-            <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-sans">AI&ML, Dev, Open Source, Game Dev, Cybersec, Robotics, Blockchain</p>
+            <h3 className="font-semibold text-primary dark:text-gray-100 mb-1 md:mb-2 font-sans text-xs md:text-sm">Technical</h3>
+            <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-sans">AI/ML, Dev, Game Dev, IoT & Robotics, Open Source & Research, CyberSec & Blockchain</p>
           </div>
           <div className="p-3 md:p-4 bg-white/15 dark:bg-gray-800/15 backdrop-blur-[2px] rounded-lg border border-white/30 dark:border-gray-700/40 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-            <h3 className="font-semibold text-primary dark:text-gray-100 mb-1 md:mb-2 font-sans text-xs md:text-sm">Design & Content</h3>
-            <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-sans">Design, UI/UX Design, Content, Social Media, Photography</p>
-          </div>
-          <div className="p-3 md:p-4 bg-white/15 dark:bg-gray-800/15 backdrop-blur-[2px] rounded-lg border border-white/30 dark:border-gray-700/40 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-            <h3 className="font-semibold text-primary dark:text-gray-100 mb-1 md:mb-2 font-sans text-xs md:text-sm">Events</h3>
-            <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-sans">Event Management, Outreach, Marketing</p>
+            <h3 className="font-semibold text-primary dark:text-gray-100 mb-1 md:mb-2 font-sans text-xs md:text-sm">Non-Technical</h3>
+            <p className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-sans">Management, Design, Social Media, Marketing</p>
           </div>
         </div>
       </div>
