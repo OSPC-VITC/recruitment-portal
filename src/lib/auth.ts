@@ -203,4 +203,28 @@ export const checkEmailVerification = async (): Promise<boolean> => {
   // Reload user to get the latest email verification status
   await user.reload();
   return user.emailVerified;
+};
+
+// Set email verification cookie
+export const setEmailVerificationCookie = (verified: boolean) => {
+  if (typeof document !== 'undefined') {
+    document.cookie = `emailVerified=${verified}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
+  }
+};
+
+// Set auth token cookie
+export const setAuthTokenCookie = (hasToken: boolean) => {
+  if (typeof document !== 'undefined') {
+    document.cookie = `authToken=${hasToken}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
+  }
+};
+
+// Clear all auth cookies
+export const clearAuthCookies = () => {
+  if (typeof document !== 'undefined') {
+    document.cookie = 'emailVerified=; path=/; max-age=0';
+    document.cookie = 'authToken=; path=/; max-age=0';
+    document.cookie = 'userInDashboard=; path=/; max-age=0';
+    document.cookie = 'applicationSubmitted=; path=/; max-age=0';
+  }
 }; 

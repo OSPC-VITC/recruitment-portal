@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { auth } from "./firebase";
-import { getCurrentUserData, isAdmin } from "./auth";
+import { getCurrentUserData, isAdmin, setEmailVerificationCookie, setAuthTokenCookie, clearAuthCookies } from "./auth";
 import { User } from "@/types";
 import { getStoredUser, storeUser, fetchUserData, checkAdminRole, getStoredApplicationProgress } from "./authStateHelpers";
 import { toast } from "sonner";
@@ -71,10 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         saveProgress(user.uid);
       }
       
-      // Clear all authentication-related cookies
-      document.cookie = "applicationSubmitted=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      document.cookie = "userInDashboard=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      document.cookie = "authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      // Clear all authentication-related cookies using the new function
+      clearAuthCookies();
       
       // Clear localStorage data
       localStorage.removeItem('auth_user');
@@ -125,10 +123,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsUserAdmin(false);
           setUserRole(null);
           setLoading(false);
+          // Clear auth cookies when user is signed out
+          clearAuthCookies();
           return;
         }
 
         try {
+          // Set auth token cookie when user is signed in
+          setAuthTokenCookie(true);
+          
+          // Set email verification cookie
+          setEmailVerificationCookie(firebaseUser.emailVerified);
+          
           // Get user data and admin status in parallel
           const [userDataFromFirestore, adminStatus] = await Promise.all([
             fetchUserData(firebaseUser.uid),

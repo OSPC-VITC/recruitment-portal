@@ -7,21 +7,55 @@ export function middleware(request: NextRequest) {
   // Get application status and navigation tracking from cookies
   const applicationSubmitted = request.cookies.get('applicationSubmitted')?.value === 'true'
   const userInDashboard = request.cookies.get('userInDashboard')?.value === 'true'
+  const emailVerified = request.cookies.get('emailVerified')?.value === 'true'
+  const isAuthenticated = request.cookies.get('authToken')?.value
   
   // Admin routes - allow full access
   if (pathname.startsWith('/dashboard') || pathname === '/admin-login') {
     return NextResponse.next()
   }
   
+  // Email verification route - always allow access
+  if (pathname === '/verify-email') {
+    return NextResponse.next()
+  }
+  
   // Home page and public routes - always allow access
   if (pathname === '/' || pathname === '/login' || pathname === '/register') {
+    // If user is authenticated but email not verified, redirect to verification
+    if (isAuthenticated && !emailVerified) {
+      const response = NextResponse.redirect(new URL('/verify-email', request.url))
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      return response
+    }
+    
     // If user is in dashboard but tries to go back to public routes, redirect to dashboard
-    if (userInDashboard && !applicationSubmitted) {
+    if (userInDashboard && emailVerified && !applicationSubmitted) {
       const response = NextResponse.redirect(new URL('/user-dashboard', request.url))
       response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
       return response
     }
     return NextResponse.next()
+  }
+  
+  // Protected user routes - require email verification
+  const protectedUserRoutes = ['/user-dashboard', '/departments', '/forms', '/review', '/status']
+  const isProtectedUserRoute = protectedUserRoutes.some(route => pathname.startsWith(route))
+  
+  if (isProtectedUserRoute) {
+    // If authenticated but email not verified, redirect to verification
+    if (isAuthenticated && !emailVerified) {
+      const response = NextResponse.redirect(new URL('/verify-email', request.url))
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      return response
+    }
+    
+    // If not authenticated, redirect to login
+    if (!isAuthenticated) {
+      const response = NextResponse.redirect(new URL('/login', request.url))
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      return response
+    }
   }
   
   // If application is submitted, force redirect to status page from all other routes
@@ -58,6 +92,7 @@ export const config = {
     '/',
     '/login',
     '/register', 
+    '/verify-email',
     '/user-dashboard/:path*',
     '/departments/:path*',
     '/forms/:path*',

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Mail, RefreshCw, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 import Navbar from "@/components/ui/navbar";
 import ParticlesBackground from "@/components/ParticlesBackground";
-import { resendEmailVerification, checkEmailVerification } from "@/lib/auth";
+import { resendEmailVerification, checkEmailVerification, setEmailVerificationCookie } from "@/lib/auth";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
@@ -32,6 +32,8 @@ export default function VerifyEmailPage() {
         setVerificationChecked(true);
         
         if (verified) {
+          // Update the email verification cookie
+          setEmailVerificationCookie(true);
           toast.success("Email verified successfully!");
           setTimeout(() => {
             router.push("/user-dashboard");
@@ -71,6 +73,8 @@ export default function VerifyEmailPage() {
       setIsVerified(verified);
       
       if (verified) {
+        // Update the email verification cookie
+        setEmailVerificationCookie(true);
         toast.success("Email verified successfully!");
         setTimeout(() => {
           router.push("/user-dashboard");
