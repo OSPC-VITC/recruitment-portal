@@ -28,7 +28,7 @@ export default function AuthCheck({ children, requireEmailVerification = true }:
       }
 
       // Skip verification check for certain pages
-      const skipVerificationPages = ['/verify-email', '/login', '/register'];
+      const skipVerificationPages = ['/verify-email', '/email-verified', '/login', '/register'];
       if (skipVerificationPages.includes(pathname)) {
         setEmailVerified(true);
         return;

@@ -5,7 +5,8 @@ import {
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
-  User
+  User,
+  ActionCodeSettings
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -41,8 +42,13 @@ export const registerUser = async (
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    // Send email verification
-    await sendEmailVerification(user);
+    // Send email verification with custom redirect URL
+    const actionCodeSettings: ActionCodeSettings = {
+      url: `${window.location.origin}/email-verified`,
+      handleCodeInApp: false,
+    };
+    
+    await sendEmailVerification(user, actionCodeSettings);
     
     // Store user data in Firestore
     await setDoc(doc(db, "users", user.uid), {

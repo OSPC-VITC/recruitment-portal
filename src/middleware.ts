@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   }
   
   // Email verification route - always allow access
-  if (pathname === '/verify-email') {
+  if (pathname === '/verify-email' || pathname === '/email-verified') {
     return NextResponse.next()
   }
   
@@ -93,6 +93,7 @@ export const config = {
     '/login',
     '/register', 
     '/verify-email',
+    '/email-verified',
     '/user-dashboard/:path*',
     '/departments/:path*',
     '/forms/:path*',
