@@ -12,7 +12,7 @@ export default function EventsForm({ onContinue, isLastDepartment = false }: Eve
   return (
     <FormTemplate
       departmentId="events"
-      departmentDisplayName="Event Ops & Management"
+      departmentDisplayName="Management"
       onContinue={onContinue}
       isLastDepartment={isLastDepartment}
       schema={eventsApplicationSchema}

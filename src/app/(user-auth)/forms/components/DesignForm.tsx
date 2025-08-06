@@ -12,7 +12,7 @@ export default function DesignForm({ onContinue, isLastDepartment = false }: Des
   return (
     <FormTemplate
       departmentId="design"
-      departmentDisplayName="Design & Content"
+      departmentDisplayName="Design"
       onContinue={onContinue}
       isLastDepartment={isLastDepartment}
       schema={designApplicationSchema}

@@ -149,8 +149,8 @@ export const DEPARTMENTS: Record<string, string> = {
   'gamedev': 'Game Dev',
   'cybersec': 'CyberSec & Blockchain',
   'robotics': 'Robotics & IoT',
-  'events': 'Event Ops & Management',
-  'design': 'Design & Content',
+  'events': 'Management',
+  'design': 'Design',
   'marketing': 'Marketing',
   'social-media': 'Social Media'
 };
@@ -182,7 +182,7 @@ export const DEPARTMENT_INFO: Department[] = [
   { 
     id: 'opensource', 
     name: 'Open Source & Research', 
-    description: 'Contributing to Open Source Projects and Conducting Research.',
+    description: 'Open Source, Research and Low-Level Dev',
     responsibilities: [
       'Contribute to open source projects',
       'Conduct research on new technologies',
