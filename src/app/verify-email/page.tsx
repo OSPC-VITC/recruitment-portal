@@ -39,8 +39,11 @@ export default function VerifyEmailPage() {
           // Update the email verification cookie
           setEmailVerificationCookie(true);
           toast.success("Email verified successfully!");
-          // Remove delay and navigate immediately
-          router.push("/user-dashboard");
+          
+          // Force immediate navigation to dashboard
+          setTimeout(() => {
+            window.location.href = "/user-dashboard";
+          }, 500);
         }
       } catch (error) {
         console.error("Error checking verification status:", error);
@@ -82,8 +85,11 @@ export default function VerifyEmailPage() {
         // Update the email verification cookie
         setEmailVerificationCookie(true);
         toast.success("Email verified successfully!");
-        // Remove delay and navigate immediately
-        router.push("/user-dashboard");
+        
+        // Force immediate navigation to dashboard
+        setTimeout(() => {
+          window.location.href = "/user-dashboard";
+        }, 500);
       } else {
         toast.info("Email not yet verified. Please check your email and click the verification link.");
       }
