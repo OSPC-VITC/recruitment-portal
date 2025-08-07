@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import ThemeToggle from "@/components/ui/theme-toggle";
-import ParticlesBackground from "@/components/ParticlesBackground";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
 import Image from "next/image";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
@@ -240,7 +240,7 @@ export default function DepartmentsPage() {
   return (
     <div className="min-h-screen font-mono relative bg-white text-black dark:bg-black dark:text-white">
       {/* Particles Background */}
-      <ParticlesBackground />
+      <ParticlesBackgroundWrapper />
       
       {/* User Navbar with Theme Toggle */}
       <UserNavbar title="Department Selection" />

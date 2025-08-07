@@ -29,7 +29,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
 
 // Get a future date for the default deadline (July 17, 2024)
 const getDefaultDeadline = (): string => {
-  return "2024-07-17"; // YYYY-MM-DD format
+  return "2025-08-31"; // YYYY-MM-DD format
 };
 
 export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {

@@ -2,12 +2,15 @@ import type { Metadata, Viewport } from "next";
 import { Space_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import ParticlesBackground from "@/components/ParticlesBackground";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
 
+// Optimize font loading with display swap
 const spaceMono = Space_Mono({
   variable: "--font-space-mono",
   subsets: ["latin"],
   weight: ["400", "700"],
+  display: 'swap',
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -36,11 +39,16 @@ export const metadata: Metadata = {
   },
 };
 
+// Add resource hints for better performance
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" }
+  ]
 };
 
 export default function RootLayout({
@@ -50,13 +58,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
+      <head>
+        {/* Preload critical assets */}
+        <link 
+          rel="preload" 
+          href="/images/ospc_logo.png" 
+          as="image" 
+          type="image/png"
+        />
+        {/* Add preconnect and dns-prefetch hints */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+      </head>
       <body
         className={`${spaceMono.variable} antialiased min-h-screen bg-transparent text-foreground relative overflow-x-hidden scroll-pt-10`}
       >
         {/* Global particle background with higher z-index */}
-        <div className="fixed inset-0 z-5 pointer-events-auto">
-          <ParticlesBackground />
-        </div>
+        <ParticlesBackgroundWrapper />
         
         <Providers>
           {/* Main content container with transparent background */}

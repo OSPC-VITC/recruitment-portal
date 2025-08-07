@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
-import ParticlesBackground from "@/components/ParticlesBackground";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
 import { Loading } from "@/components/ui/loading";
 import { useTheme } from "@/components/ThemeProvider";
 import { Sun, Moon } from "lucide-react";
@@ -100,9 +100,7 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-transparent p-4 sm:p-6 md:p-8 relative">
       {/* Particles Background */}
-      <div className="fixed inset-0 z-0 pointer-events-auto">
-        <ParticlesBackground />
-      </div>
+      <ParticlesBackgroundWrapper />
       
       {/* Theme Toggle */}
       <div className="fixed top-4 right-4 z-10">

@@ -8,10 +8,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mail, RefreshCw, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
 import Navbar from "@/components/ui/navbar";
-import ParticlesBackground from "@/components/ParticlesBackground";
-import { resendEmailVerification, checkEmailVerification, setEmailVerificationCookie } from "@/lib/auth";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
+import { resendEmailVerification, setEmailVerificationCookie } from "@/lib/auth";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
+import { auth } from "@/lib/firebase";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -27,7 +28,10 @@ export default function VerifyEmailPage() {
       if (!user || loading) return;
       
       try {
-        const verified = await checkEmailVerification();
+        // Reload user to get the latest email verification status
+        await auth.currentUser?.reload();
+        const verified = auth.currentUser?.emailVerified || false;
+        
         setIsVerified(verified);
         setVerificationChecked(true);
         
@@ -35,9 +39,8 @@ export default function VerifyEmailPage() {
           // Update the email verification cookie
           setEmailVerificationCookie(true);
           toast.success("Email verified successfully!");
-          setTimeout(() => {
-            router.push("/user-dashboard");
-          }, 2000);
+          // Remove delay and navigate immediately
+          router.push("/user-dashboard");
         }
       } catch (error) {
         console.error("Error checking verification status:", error);
@@ -69,16 +72,18 @@ export default function VerifyEmailPage() {
   const handleCheckVerification = async () => {
     setIsCheckingVerification(true);
     try {
-      const verified = await checkEmailVerification();
+      // Reload user to get the latest email verification status
+      await auth.currentUser?.reload();
+      const verified = auth.currentUser?.emailVerified || false;
+      
       setIsVerified(verified);
       
       if (verified) {
         // Update the email verification cookie
         setEmailVerificationCookie(true);
         toast.success("Email verified successfully!");
-        setTimeout(() => {
-          router.push("/user-dashboard");
-        }, 1000);
+        // Remove delay and navigate immediately
+        router.push("/user-dashboard");
       } else {
         toast.info("Email not yet verified. Please check your email and click the verification link.");
       }
@@ -98,17 +103,10 @@ export default function VerifyEmailPage() {
       <div className="flex min-h-screen flex-col">
         <Navbar />
         <main className="flex-1 flex items-center justify-center px-4 py-12">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-gray-600 dark:text-gray-400">Loading...</p>
-          </div>
+          <div className="text-center">Loading...</div>
         </main>
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // Will redirect in useEffect
   }
 
   return (
@@ -116,12 +114,10 @@ export default function VerifyEmailPage() {
       <Navbar />
       <main className="flex-1 flex items-center justify-center px-4 py-12 relative">
         {/* Particles Background */}
-        <div className="absolute inset-0 z-0">
-          <ParticlesBackground />
-        </div>
+        <ParticlesBackgroundWrapper />
         
         <Card className="w-full max-w-md shadow-xl z-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border border-white/30 dark:border-gray-800/50">
-          <div className="p-6">
+          <div className="p-8">
             <div className="flex justify-center mb-6">
               <Image 
                 src="/images/ospc_logo.png" 
@@ -131,103 +127,78 @@ export default function VerifyEmailPage() {
                 className="rounded-xl shadow-lg"
               />
             </div>
-
+            
+            <h1 className="text-2xl font-bold text-center mb-4 bg-gradient-to-r from-primary via-purple-600 to-blue-600 text-transparent bg-clip-text">Verify Your Email</h1>
+            
+            <div className="bg-gray-100/60 dark:bg-gray-800/60 rounded-lg p-4 mb-6">
+              <div className="flex items-center mb-2">
+                <Mail className="mr-2 text-amber-500" size={20} />
+                <p className="text-sm font-semibold">Verification Required</p>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                We've sent a verification email to your inbox. Please check and click the link to activate your account.
+              </p>
+            </div>
+            
             {isVerified ? (
-              // Email is verified
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <CheckCircle className="h-16 w-16 text-green-500" />
+              <div className="bg-green-100/60 dark:bg-green-900/30 rounded-lg p-4 mb-6 border border-green-200 dark:border-green-900">
+                <div className="flex items-center mb-2">
+                  <CheckCircle className="mr-2 text-green-500" size={20} />
+                  <p className="text-sm font-semibold text-green-700 dark:text-green-300">Email Verified!</p>
                 </div>
-                <h1 className="text-2xl font-bold mb-4 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-transparent bg-clip-text">
-                  Email Verified!
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Your email has been successfully verified. You can now access your dashboard.
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Your email has been verified. You can now access all features of the OSPC portal.
                 </p>
-                <Button 
-                  onClick={() => router.push("/user-dashboard")}
-                  className="w-full h-10"
-                >
-                  Continue to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
               </div>
-            ) : (
-              // Email needs verification
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <Mail className="h-16 w-16 text-primary" />
+            ) : verificationChecked ? (
+              <div className="bg-amber-100/60 dark:bg-amber-900/30 rounded-lg p-4 mb-6 border border-amber-200 dark:border-amber-900">
+                <div className="flex items-center mb-2">
+                  <AlertCircle className="mr-2 text-amber-500" size={20} />
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Not Verified Yet</p>
                 </div>
-                <h1 className="text-2xl font-bold mb-4 bg-gradient-to-r from-primary via-purple-600 to-blue-600 text-transparent bg-clip-text">
-                  Verify Your Email
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  We've sent a verification email to:
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  We haven't detected your email verification yet. Please check your email and click the verification link.
                 </p>
-                <p className="font-medium text-gray-800 dark:text-gray-200 mb-6 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
-                  {user.email}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                  Please check your email inbox (and spam folder) and click the verification link to activate your account.
-                </p>
-
-                <div className="space-y-3">
-                  <Button 
-                    onClick={handleCheckVerification}
-                    className="w-full h-10"
-                    disabled={isCheckingVerification}
-                  >
-                    {isCheckingVerification ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Checking...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        I've Verified My Email
-                      </>
-                    )}
-                  </Button>
-
-                  <Button 
-                    variant="outline"
-                    onClick={handleResendEmail}
-                    className="w-full h-10"
-                    disabled={isResending}
-                  >
-                    {isResending ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Resend Verification Email
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                    Need to use a different email?
-                  </p>
-                  <Button 
-                    variant="ghost"
-                    onClick={handleContinueToLogin}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Sign in with different account
-                  </Button>
-                </div>
               </div>
-            )}
-
-            <div className="mt-6 text-center text-sm">
-              <Link href="/" className="text-gray-500 hover:underline">
-                Back to Home
-              </Link>
+            ) : null}
+            
+            <div className="space-y-4">
+              <Button 
+                className="w-full"
+                variant="default"
+                onClick={handleCheckVerification}
+                disabled={isCheckingVerification}
+              >
+                {isCheckingVerification ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Check Verification Status
+              </Button>
+              
+              <Button 
+                className="w-full"
+                variant="outline"
+                onClick={handleResendEmail}
+                disabled={isResending}
+              >
+                {isResending ? (
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="mr-2 h-4 w-4" />
+                )}
+                Resend Verification Email
+              </Button>
+              
+              <Button 
+                className="w-full"
+                variant="ghost"
+                onClick={handleContinueToLogin}
+              >
+                Back to Login
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
         </Card>

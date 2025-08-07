@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/AuthContext";
 import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
-import ParticlesBackground from "@/components/ParticlesBackground";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
 import { Loading } from "@/components/ui/loading";
 
 export default function AuthLayout({
@@ -39,9 +39,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen relative overflow-hidden bg-transparent">
       {/* Global particle background for all user pages */}
-      <div className="fixed inset-0 z-0 pointer-events-auto">
-        <ParticlesBackground />
-      </div>
+      <ParticlesBackgroundWrapper />
       
       {/* Content container with transparent background and subtle blur */}
       <div className="relative z-10 bg-transparent pt-16">

@@ -44,7 +44,7 @@ export const registerUser = async (
     
     // Send email verification with custom redirect URL
     const actionCodeSettings: ActionCodeSettings = {
-      url: `${window.location.origin}/email-verified`,
+      url: `https://recruitments.ospcvitc.club/email-verified`,
       handleCodeInApp: false,
     };
     
@@ -55,7 +55,8 @@ export const registerUser = async (
       ...userData,
       departments: [],
       status: 'pending',
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      applicationSubmitted: false
     });
     
     return user;
@@ -98,139 +99,118 @@ export const signIn = async (email: string, password: string) => {
   }
 };
 
-// Send password reset email
+// Reset password
 export const resetPassword = async (email: string) => {
   try {
-    // Validate email domain
-    const isStudentEmail = email.endsWith('@vitstudent.ac.in');
-    
-    if (!isStudentEmail) {
-      throw new Error('Please use your college email address (@vitstudent.ac.in)');
-    }
-    
     await sendPasswordResetEmail(auth, email);
-    return true;
   } catch (error: any) {
-    // Handle Firebase auth errors with user-friendly messages
     if (error.code === 'auth/user-not-found') {
-      throw new Error('No account found with this email address');
+      throw new Error('No account found with this email');
     } else if (error.code === 'auth/invalid-email') {
       throw new Error('Please enter a valid email address');
-    } else if (error.code === 'auth/too-many-requests') {
-      throw new Error('Too many requests. Please try again later');
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Network connection issue. Please check your internet connection');
     } else {
       throw new Error('Unable to send password reset email. Please try again');
     }
   }
 };
 
-// Sign out user
+// Sign out
 export const signOut = async () => {
-  await firebaseSignOut(auth);
+  try {
+    await firebaseSignOut(auth);
+  } catch (error) {
+    console.error('Sign out error:', error);
+    throw new Error('Unable to sign out. Please try again');
+  }
 };
 
-// Get current user data from Firestore
+// Get current user data from Firestore - with performance optimization
 export const getCurrentUserData = async (uid: string): Promise<UserData | null> => {
   try {
-    const userDoc = await getDoc(doc(db, "users", uid));
+    const docRef = doc(db, "users", uid);
+    const userDoc = await getDoc(docRef);
+    
     if (userDoc.exists()) {
       return userDoc.data() as UserData;
     }
+    
     return null;
   } catch (error) {
-    console.error("Error fetching user data:", error);
+    console.error('Error getting user data:', error);
     return null;
   }
 };
 
-// Get the current authenticated user's document from Firestore
+// Get the current user's document - optimized
 export const getUserDocument = async (): Promise<UserData | null> => {
   try {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      return null;
-    }
+    const user = auth.currentUser;
+    if (!user) return null;
     
-    const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-    if (userDoc.exists()) {
-      return userDoc.data() as UserData;
-    }
-    
-    return null;
+    return await getCurrentUserData(user.uid);
   } catch (error) {
-    console.error("Error fetching user document:", error);
+    console.error('Error getting user document:', error);
     return null;
   }
 };
 
-// Check if user is admin
+// Check if user is an admin
 export const isAdmin = async (uid: string): Promise<boolean> => {
   try {
-    const roleDoc = await getDoc(doc(db, "roles", uid));
-    if (roleDoc.exists() && roleDoc.data()?.role === "admin") {
-      return true;
+    // Check for admin session
+    const docRef = doc(db, "adminSessions", uid);
+    const adminDoc = await getDoc(docRef);
+    
+    if (adminDoc.exists()) {
+      const adminData = adminDoc.data();
+      return adminData.isActive === true && adminData.expiresAt.toDate() > new Date();
     }
+    
     return false;
   } catch (error) {
-    console.error("Error checking admin status:", error);
+    console.error('Error checking admin status:', error);
     return false;
   }
 };
 
-// Resend email verification
+// Resend email verification - only for registration
 export const resendEmailVerification = async () => {
   try {
     const user = auth.currentUser;
     if (!user) {
-      throw new Error('No user is currently signed in');
+      throw new Error('No user is signed in');
     }
     
-    if (user.emailVerified) {
-      throw new Error('Email is already verified');
-    }
+    const actionCodeSettings: ActionCodeSettings = {
+      url: `${window.location.origin}/email-verified`,
+      handleCodeInApp: false,
+    };
     
-    await sendEmailVerification(user);
+    await sendEmailVerification(user, actionCodeSettings);
+    return true;
   } catch (error: any) {
     if (error.code === 'auth/too-many-requests') {
-      throw new Error('Too many verification emails sent. Please try again later');
-    } else if (error.code === 'auth/network-request-failed') {
-      throw new Error('Network connection issue. Please check your internet connection');
+      throw new Error('Too many verification emails sent. Please try again later.');
     } else {
-      throw new Error(error.message || 'Unable to send verification email. Please try again');
+      console.error('Error sending verification email:', error);
+      throw new Error('Unable to send verification email. Please try again later.');
     }
   }
 };
 
-// Check if current user's email is verified
-export const checkEmailVerification = async (): Promise<boolean> => {
-  const user = auth.currentUser;
-  if (!user) return false;
-  
-  // Reload user to get the latest email verification status
-  await user.reload();
-  return user.emailVerified;
-};
-
-// Set email verification cookie
+// Cookie management - simplified and optimized
 export const setEmailVerificationCookie = (verified: boolean) => {
-  if (typeof document !== 'undefined') {
-    document.cookie = `emailVerified=${verified}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
-  }
+  document.cookie = `emailVerified=${verified ? 'true' : 'false'}; path=/; max-age=86400`; // 1 day
 };
 
-// Set auth token cookie
 export const setAuthTokenCookie = (hasToken: boolean) => {
-  if (typeof document !== 'undefined') {
-    document.cookie = `authToken=${hasToken}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
-  }
+  document.cookie = `hasAuthToken=${hasToken ? 'true' : 'false'}; path=/; max-age=86400`; // 1 day
 };
 
-// Clear all auth cookies
 export const clearAuthCookies = () => {
-  if (typeof document !== 'undefined') {
-    document.cookie = 'emailVerified=; path=/; max-age=0';
-    document.cookie = 'authToken=; path=/; max-age=0';
-    document.cookie = 'userInDashboard=; path=/; max-age=0';
-    document.cookie = 'applicationSubmitted=; path=/; max-age=0';
-  }
+  document.cookie = 'emailVerified=false; path=/; max-age=0';
+  document.cookie = 'hasAuthToken=false; path=/; max-age=0';
+  document.cookie = 'applicationSubmitted=false; path=/; max-age=0';
 }; 

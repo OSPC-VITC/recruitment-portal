@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useTheme } from '@/components/ThemeProvider';
 
 interface Particle {
@@ -72,6 +72,8 @@ const ParticlesBackground = () => {
   const particlesRef = useRef<Particle[]>([]);
   const timeRef = useRef(0);
   const { theme, isMounted } = useSafeTheme();
+  const lastFrameTimeRef = useRef(0);
+  const targetFpsRef = useRef(30); // Lower FPS target for better performance
 
   useEffect(() => {
     // Don't run if not mounted yet to prevent hydration issues
@@ -80,7 +82,7 @@ const ParticlesBackground = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
     
     // Theme change observer
@@ -98,10 +100,14 @@ const ParticlesBackground = () => {
     // Start observing document element for class changes
     observer.observe(document.documentElement, { attributes: true });
 
-    // Initialize particles - define this function first
+    // Detect if we're on mobile
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+    // Initialize particles
     const initParticles = () => {
-      // Reduce particle count for less density
-      const particleCount = Math.floor((window.innerWidth * window.innerHeight) / 12000); // Even fewer particles
+      // Further reduce particle count on mobile and in general
+      const baseDivisor = isMobile ? 18000 : 15000; // Even fewer particles
+      const particleCount = Math.floor((window.innerWidth * window.innerHeight) / baseDivisor);
       particlesRef.current = [];
 
       for (let i = 0; i < particleCount; i++) {
@@ -109,8 +115,8 @@ const ParticlesBackground = () => {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
         
-        // Higher base velocities for more movement
-        const speed = Math.random() * 0.5 + 0.1; // Slower speed between 0.1 and 0.6
+        // Lower base velocities for better performance
+        const speed = Math.random() * 0.3 + 0.1; // Slower speed between 0.1 and 0.4
         const angle = Math.random() * Math.PI * 2; // Random angle in radians
         
         // Determine particle color based on theme
@@ -121,13 +127,13 @@ const ParticlesBackground = () => {
         if (theme === 'dark') {
           // White particles in dark mode
           particleColor = '#ffffff';
-          particleOpacity = Math.random() * 0.4 + 0.1; // 0.1-0.5 opacity (more subtle)
-          particleSize = Math.random() * 3 + 1; // 1-4 size (smaller)
+          particleOpacity = Math.random() * 0.3 + 0.1; // Lower opacity
+          particleSize = Math.random() * 2 + 1; // Smaller size
         } else {
-          // Black particles in light mode with higher opacity and size
+          // Blue particles in light mode with higher opacity and size
           particleColor = '#00008B';
-          particleOpacity = Math.random() * 0.5 + 0.2; // 0.2-0.7 opacity (more subtle)
-          particleSize = Math.random() * 4 + 1.5; // 1.5-5.5 size (smaller)
+          particleOpacity = Math.random() * 0.4 + 0.1; // Lower opacity
+          particleSize = Math.random() * 2.5 + 1; // Smaller size
         }
         
         particlesRef.current.push({
@@ -135,20 +141,15 @@ const ParticlesBackground = () => {
           y: y,
           originalX: x,
           originalY: y,
-          // Use speed and angle for more natural movement
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          // Use theme-based size
           size: particleSize,
-          // Use theme-based opacity
           opacity: particleOpacity,
           baseOpacity: particleOpacity,
-          // Use theme-based color
           color: particleColor,
-          // Add speed and angle properties for more dynamic movement
           speed: speed,
           angle: angle,
-          angleSpeed: (Math.random() - 0.5) * 0.02 // Small random rotation
+          angleSpeed: (Math.random() - 0.5) * 0.01 // Reduce rotation speed
         });
       }
     };
@@ -163,118 +164,154 @@ const ParticlesBackground = () => {
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    
+    // Throttle resize event
+    let resizeTimeout: number;
+    const handleResize = () => {
+      if (resizeTimeout) clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(() => {
+        resizeCanvas();
+      }, 300); // Wait 300ms after resize ends
+    };
+    
+    window.addEventListener('resize', handleResize);
 
-    // Animation loop
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Animation loop with FPS limiter
+    const animate = (timestamp: number) => {
+      // Calculate delta time for frame rate control
+      const targetFrameTime = 1000 / targetFpsRef.current; // ms per frame
+      const elapsed = timestamp - lastFrameTimeRef.current;
       
-      // Increment time for animation effects
-      timeRef.current += 0.005;
-
-      particlesRef.current.forEach((particle, index) => {
-        // Apply natural movement patterns
-        // Update angle with angleSpeed for rotation
-        particle.angle += particle.angleSpeed;
+      // Only render if enough time has passed for target FPS
+      if (elapsed > targetFrameTime) {
+        lastFrameTimeRef.current = timestamp - (elapsed % targetFrameTime);
         
-        // Add some wave-like motion using sin and cos
-        const waveX = Math.sin(timeRef.current + index * 0.1) * 0.3;
-        const waveY = Math.cos(timeRef.current + index * 0.1) * 0.3;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        particle.vx += waveX * 0.02;
-        particle.vy += waveY * 0.02;
-        
-        // Return to normal state gradually
-        particle.opacity = Math.max(particle.baseOpacity, particle.opacity - 0.01);
-        particle.size = Math.max(2, particle.size - 0.02);
-        
-        // Gentle pull back to original position for more movement
-        const returnForce = 0.0005;
-        particle.vx += (particle.originalX - particle.x) * returnForce;
-        particle.vy += (particle.originalY - particle.y) * returnForce;
-
-        // Apply friction - slightly reduced to allow more movement
-        particle.vx *= 0.99;
-        particle.vy *= 0.99;
-
-        // Update position
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-
-        // Boundary handling with wrapping rather than bouncing
-        // This creates a more continuous flow of particles
-        if (particle.x < -50) {
-          particle.x = canvas.width + 50;
-          particle.originalX = particle.x;
-        } 
-        if (particle.x > canvas.width + 50) {
-          particle.x = -50;
-          particle.originalX = particle.x;
-        }
-        if (particle.y < -50) {
-          particle.y = canvas.height + 50;
-          particle.originalY = particle.y;
-        }
-        if (particle.y > canvas.height + 50) {
-          particle.y = -50; 
-          particle.originalY = particle.y;
-        }
-
-        // Calculate alpha value as hex
-        const alphaHex = Math.floor(particle.opacity * 255).toString(16).padStart(2, '0');
-        
-        // Draw particle with glow effect
-        const glowIntensity = theme === 'dark' ? 1.5 : 2.0; // Higher glow intensity for light mode
-        
-        // Outer glow - adjusted for theme
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size * 2, 0, Math.PI * 2);
-        ctx.fillStyle = particle.color + (theme === 'dark' ? '20' : '30'); // Stronger glow in light mode
-        ctx.fill();
-        
-        // Main particle
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = particle.color + alphaHex;
-        ctx.fill();
-
-        // Enhanced connections with dynamic opacity
-        // Only connect to every 3rd particle to reduce connections
-        particlesRef.current.slice(index + 1).forEach((otherParticle, otherIndex) => {
-          // Skip 2 out of 3 potential connections
-          if (otherIndex % 3 !== 0) return;
+        // Increment time for animation effects
+        timeRef.current += 0.005;
+  
+        particlesRef.current.forEach((particle, index) => {
+          // Apply natural movement patterns with reduced calculations
+          particle.angle += particle.angleSpeed;
           
-          const dx = particle.x - otherParticle.x;
-          const dy = particle.y - otherParticle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          // Reduce connection distance
-          const maxConnectionDistance = 120; // Reduced from 180
+          // Simplified wave motion - calculate wave only for visible particles
+          if (particle.x >= 0 && particle.x <= canvas.width && 
+              particle.y >= 0 && particle.y <= canvas.height) {
+            const waveX = Math.sin(timeRef.current + index * 0.2) * 0.2;
+            const waveY = Math.cos(timeRef.current + index * 0.2) * 0.2;
+            
+            particle.vx += waveX * 0.01;
+            particle.vy += waveY * 0.01;
+          }
           
-          if (distance < maxConnectionDistance) {
-            // Keep opacity but reduce line width
-            const opacity = (maxConnectionDistance - distance) / maxConnectionDistance * (theme === 'dark' ? 0.4 : 0.6); // Higher opacity for light mode
-            const lineWidth = opacity * (theme === 'dark' ? 1.5 : 2.0); // Thicker lines for light mode
+          // Return to normal state gradually
+          particle.opacity = Math.max(particle.baseOpacity, particle.opacity - 0.01);
+          
+          // Gentle pull back to original position for more movement
+          const returnForce = 0.0003;
+          particle.vx += (particle.originalX - particle.x) * returnForce;
+          particle.vy += (particle.originalY - particle.y) * returnForce;
+  
+          // Apply friction - slightly reduced to allow more movement
+          particle.vx *= 0.99;
+          particle.vy *= 0.99;
+  
+          // Update position
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+  
+          // Boundary handling with wrapping rather than bouncing
+          if (particle.x < -50) {
+            particle.x = canvas.width + 50;
+            particle.originalX = particle.x;
+          } 
+          if (particle.x > canvas.width + 50) {
+            particle.x = -50;
+            particle.originalX = particle.x;
+          }
+          if (particle.y < -50) {
+            particle.y = canvas.height + 50;
+            particle.originalY = particle.y;
+          }
+          if (particle.y > canvas.height + 50) {
+            particle.y = -50; 
+            particle.originalY = particle.y;
+          }
+  
+          // Calculate alpha value as hex
+          const alphaHex = Math.floor(particle.opacity * 255).toString(16).padStart(2, '0');
+          
+          // Draw particle with glow effect
+          const glowIntensity = theme === 'dark' ? 1.5 : 2.0; // Higher glow intensity for light mode
+          
+          // Outer glow - adjusted for theme
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = particle.color + (theme === 'dark' ? '10' : '20'); // Reduced glow
+          ctx.fill();
+          
+          // Main particle
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+          ctx.fillStyle = particle.color + alphaHex;
+          ctx.fill();
+  
+          // Reduced connections - only process every 4th particle and connect to fewer particles
+          if (index % 4 === 0) {
+            // Only connect to nearest few particles to reduce calculations
+            const connectLimit = isMobile ? 3 : 5;
+            const skipFactor = isMobile ? 6 : 4;
             
-            // Use theme-based color for connections
-            const connectionColor = theme === 'dark' ? 'rgba(255, 255, 255, ' : 'rgba(0, 0, 0, ';
-            
-            ctx.beginPath();
-            ctx.moveTo(particle.x, particle.y);
-            ctx.lineTo(otherParticle.x, otherParticle.y);
-            ctx.strokeStyle = `${connectionColor}${opacity})`;
-            ctx.lineWidth = lineWidth;
-            ctx.stroke();
+            particlesRef.current.slice(index + 1, index + 30).forEach((otherParticle, otherIndex) => {
+              // Skip more connections on mobile
+              if (otherIndex % skipFactor !== 0) return;
+              
+              const dx = particle.x - otherParticle.x;
+              const dy = particle.y - otherParticle.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              // Reduce connection distance
+              const maxConnectionDistance = isMobile ? 80 : 100; // Reduced
+              
+              if (distance < maxConnectionDistance) {
+                // Keep opacity but reduce line width
+                const opacity = (maxConnectionDistance - distance) / maxConnectionDistance * (theme === 'dark' ? 0.3 : 0.4); // Lower opacity
+                
+                // Use theme-based color for connections
+                const connectionColor = theme === 'dark' ? 'rgba(255, 255, 255, ' : 'rgba(0, 0, 0, ';
+                
+                ctx.beginPath();
+                ctx.moveTo(particle.x, particle.y);
+                ctx.lineTo(otherParticle.x, otherParticle.y);
+                ctx.strokeStyle = `${connectionColor}${opacity})`;
+                ctx.lineWidth = 0.8; // Thinner lines
+                ctx.stroke();
+              }
+            });
           }
         });
-      });
+      }
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    animate();
+    // Start the animation
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    // Lower FPS when window is not focused
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        targetFpsRef.current = 15; // Lower FPS when tab is not visible
+      } else {
+        targetFpsRef.current = isMobile ? 25 : 30; // Restore FPS based on device
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -283,13 +320,29 @@ const ParticlesBackground = () => {
     };
   }, [isMounted, theme]); // Add theme as a dependency to re-initialize particles when theme changes
 
+  // Use CSS to reduce canvas quality on mobile for better performance
+  const canvasStyle = useMemo(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    return {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: 0,
+      // Use valid CSS values for image rendering
+      WebkitImageRendering: isMobile ? 'pixelated' : 'auto',
+      imageRendering: isMobile ? 'pixelated' : 'auto',
+    } as React.CSSProperties;
+  }, []);
+
   return (
     <canvas
       ref={canvasRef}
       className="w-full h-full"
-      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0 }}
+      style={canvasStyle}
     />
   );
 };
 
-export default ParticlesBackground;
+export default React.memo(ParticlesBackground);

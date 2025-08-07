@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { Loading } from "@/components/ui/loading";
-import { checkEmailVerification } from "@/lib/auth";
+import { auth } from "@/lib/firebase";
 
 interface AuthCheckProps {
   children: React.ReactNode;
@@ -36,7 +36,10 @@ export default function AuthCheck({ children, requireEmailVerification = true }:
 
       setCheckingVerification(true);
       try {
-        const verified = await checkEmailVerification();
+        // Reload user to get the latest email verification status
+        await auth.currentUser?.reload();
+        const verified = auth.currentUser?.emailVerified || false;
+        
         setEmailVerified(verified);
         
         if (!verified) {

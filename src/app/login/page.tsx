@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { loginSchema, type LoginFormData } from "@/lib/schemas";
-import { signIn, resetPassword, getUserDocument, checkEmailVerification } from "@/lib/auth";
+import { signIn, resetPassword, getUserDocument } from "@/lib/auth";
 import { Eye, EyeOff } from "lucide-react";
 import Navbar from "@/components/ui/navbar";
-import ParticlesBackground from "@/components/ParticlesBackground";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
+import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
   return (
@@ -22,9 +23,7 @@ export default function LoginPage() {
       <Navbar />
       <main className="flex-1 flex items-center justify-center px-4 py-12 relative">
         {/* Particles Background */}
-        <div className="absolute inset-0 z-0">
-          <ParticlesBackground />
-        </div>
+        <ParticlesBackgroundWrapper />
         
         <Card className="w-full max-w-md shadow-xl z-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border border-white/30 dark:border-gray-800/50">
           <div className="p-6">
@@ -84,13 +83,15 @@ function LoginForm() {
     try {
       await signIn(data.email, data.password);
       
-      // Check email verification status
-      const isEmailVerified = await checkEmailVerification();
+      // Check email verification status directly from Firebase user
+      // Reload the user to get the latest email verification status
+      await auth.currentUser?.reload();
+      const isEmailVerified = auth.currentUser?.emailVerified || false;
+      
       if (!isEmailVerified) {
         setSuccessMessage("Login successful! Please verify your email to continue.");
-        setTimeout(() => {
-          router.push("/verify-email");
-        }, 1500);
+        // Remove delay and navigate immediately
+        router.push("/verify-email");
         return;
       }
       
@@ -99,15 +100,14 @@ function LoginForm() {
       // Check if the user has already submitted their application
       const userDoc = await getUserDocument();
       if (userDoc?.applicationSubmitted) {
-        // Set the cookie for application submitted
-        document.cookie = "applicationSubmitted=true; path=/; max-age=31536000"; // 1 year
+        // Remove delay and navigate immediately
         router.push("/status");
       } else {
+        // Remove delay and navigate immediately
         router.push("/user-dashboard");
       }
     } catch (error: any) {
-      console.error("Login error:", error);
-      setError(error.message || "Unable to sign in. Please try again");
+      setError(error.message || "Login failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowRight, Home } from "lucide-react";
 import Navbar from "@/components/ui/navbar";
-import ParticlesBackground from "@/components/ParticlesBackground";
+import ParticlesBackgroundWrapper from "@/components/ParticlesBackgroundWrapper";
 
 export default function EmailVerifiedPage() {
   return (
@@ -15,9 +15,7 @@ export default function EmailVerifiedPage() {
       <Navbar />
       <main className="flex-1 flex items-center justify-center px-4 py-12 relative">
         {/* Particles Background */}
-        <div className="absolute inset-0 z-0">
-          <ParticlesBackground />
-        </div>
+        <ParticlesBackgroundWrapper />
         
         <Card className="w-full max-w-md shadow-xl z-10 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border border-white/30 dark:border-gray-800/50">
           <div className="p-6">
