@@ -73,7 +73,7 @@ export const registerUser = async (
     } else if (error.code === 'auth/network-request-failed') {
       throw new Error('Network connection issue. Please check your internet connection');
     } else {
-      throw new Error(error.message);
+      throw new Error('Unable to create your account. Please try again');
     }
   }
 };
