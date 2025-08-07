@@ -14,7 +14,6 @@ const nextConfig = {
     domains: ['firebasestorage.googleapis.com'],
     formats: ['image/avif', 'image/webp'],
   },
-  swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
@@ -24,8 +23,7 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
-    // This helps with faster navigation
-    ppr: true,
+    // ppr: true, // Removed as it requires canary version
   },
 };
 
