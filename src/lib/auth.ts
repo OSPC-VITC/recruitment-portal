@@ -44,7 +44,7 @@ export const registerUser = async (
     
     // Send email verification with custom redirect URL
     const actionCodeSettings: ActionCodeSettings = {
-      url: `https://recruitments.ospcvitc.club/email-verified`,
+      url: `${typeof window !== 'undefined' ? window.location.origin : 'https://recruitments.ospcvitc.club'}/email-verified`,
       handleCodeInApp: false,
     };
     
@@ -184,7 +184,7 @@ export const resendEmailVerification = async () => {
     }
     
     const actionCodeSettings: ActionCodeSettings = {
-      url: `${window.location.origin}/email-verified`,
+      url: `${typeof window !== 'undefined' ? window.location.origin : 'https://recruitments.ospcvitc.club'}/email-verified`,
       handleCodeInApp: false,
     };
     
