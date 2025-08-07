@@ -31,10 +31,10 @@ export const registerUser = async (
   userData: Omit<UserData, 'departments' | 'status' | 'createdAt'>
 ) => {
   try {
-    // Validate email domain - allow only student emails
-    const isStudentEmail = email.endsWith('@vitstudent.ac.in');
+    // Validate email domain - allow any email in production
+    const isValidEmail = process.env.NODE_ENV === 'production' ? true : email.endsWith('@vitstudent.ac.in');
     
-    if (!isStudentEmail) {
+    if (!isValidEmail) {
       throw new Error('Please use your college email address (@vitstudent.ac.in)');
     }
     
@@ -44,7 +44,9 @@ export const registerUser = async (
     
     // Send email verification with custom redirect URL
     const actionCodeSettings: ActionCodeSettings = {
-      url: `${typeof window !== 'undefined' ? window.location.origin : 'https://recruitments.ospcvitc.club'}/email-verified`,
+      url: process.env.NODE_ENV === 'production' 
+        ? 'https://recruitments.ospcvitc.club/email-verified'
+        : `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/email-verified`,
       handleCodeInApp: false,
     };
     
@@ -71,7 +73,7 @@ export const registerUser = async (
     } else if (error.code === 'auth/network-request-failed') {
       throw new Error('Network connection issue. Please check your internet connection');
     } else {
-      throw new Error('Unable to create your account. Please try again');
+      throw new Error(error.message);
     }
   }
 };
@@ -184,7 +186,9 @@ export const resendEmailVerification = async () => {
     }
     
     const actionCodeSettings: ActionCodeSettings = {
-      url: `${typeof window !== 'undefined' ? window.location.origin : 'https://recruitments.ospcvitc.club'}/email-verified`,
+      url: process.env.NODE_ENV === 'production' 
+        ? 'https://recruitments.ospcvitc.club/email-verified'
+        : `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/email-verified`,
       handleCodeInApp: false,
     };
     

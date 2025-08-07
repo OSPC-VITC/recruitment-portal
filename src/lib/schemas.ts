@@ -6,7 +6,13 @@ export const registrationSchema = z.object({
   email: z
     .string()
     .email("Must be a valid email address")
-    .refine((email) => email.endsWith("@vitstudent.ac.in") || email.endsWith("@admin.ospc.com"), {
+    .refine((email) => {
+      // In production, disable email domain check to allow testing
+      if (process.env.NODE_ENV === 'production') return true;
+      
+      // In development, enforce college email
+      return email.endsWith("@vitstudent.ac.in") || email.endsWith("@admin.ospc.com");
+    }, {
       message: "Must use your college email address (@vitstudent.ac.in)"
     }),
   regNo: z
