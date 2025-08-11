@@ -118,13 +118,15 @@ export function setupGlobalChunkErrorHandling(): void {
   if (typeof window === 'undefined') return;
 
   // Handle unhandled promise rejections that might be chunk errors
-  window.addEventListener('unhandledrejection', (event) => {
-    if (isChunkLoadError(event.reason)) {
-      console.error('Unhandled chunk load error:', event.reason);
-      
+  const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    const rejectionReason = event.reason;
+
+    if (isChunkLoadError(rejectionReason)) {
+      console.error('Unhandled chunk load error:', rejectionReason);
+
       // Prevent the error from being logged to console
       event.preventDefault();
-      
+
       // Attempt to reload the page after a short delay
       setTimeout(() => {
         if (confirm('A loading error occurred. Would you like to reload the page?')) {
@@ -132,28 +134,36 @@ export function setupGlobalChunkErrorHandling(): void {
         }
       }, 1000);
     }
-  });
+  };
 
   // Handle script loading errors
-  window.addEventListener('error', (event) => {
-    const target = event.target as HTMLScriptElement;
-    
-    if (target && target.tagName === 'SCRIPT') {
-      const src = target.src;
-      
+  const handleScriptError = (event: ErrorEvent) => {
+    const targetElement = event.target as HTMLScriptElement;
+
+    if (targetElement && targetElement.tagName === 'SCRIPT') {
+      const scriptSrc = targetElement.src;
+
       // Check if this is a webpack chunk
-      if (src && (src.includes('chunk') || src.includes('webpack'))) {
-        console.error('Script loading error for chunk:', src);
-        
+      if (scriptSrc && (scriptSrc.includes('chunk') || scriptSrc.includes('webpack'))) {
+        console.error('Script loading error for chunk:', scriptSrc);
+
         // Clear cache and retry loading the page
         clearChunkCache().then(() => {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }).catch(() => {
+          // Fallback if cache clearing fails
           setTimeout(() => {
             window.location.reload();
           }, 1000);
         });
       }
     }
-  }, true);
+  };
+
+  window.addEventListener('unhandledrejection', handleUnhandledRejection);
+  window.addEventListener('error', handleScriptError, true);
 }
 
 /**
@@ -165,30 +175,49 @@ export async function preloadCriticalChunks(): Promise<void> {
   try {
     // Get all script tags that look like webpack chunks
     const scripts = Array.from(document.querySelectorAll('script[src]')) as HTMLScriptElement[];
-    const chunkScripts = scripts.filter(script => 
+    const chunkScripts = scripts.filter(script =>
       script.src.includes('chunk') || script.src.includes('webpack')
     );
 
-    // Preload each chunk
-    const preloadPromises = chunkScripts.map(script => {
+    // Preload each chunk with proper variable scoping
+    const preloadPromises = chunkScripts.map((script, index) => {
       return new Promise<void>((resolve, reject) => {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.as = 'script';
-        link.href = script.src;
-        
-        link.onload = () => resolve();
-        link.onerror = () => reject(new Error(`Failed to preload chunk: ${script.src}`));
-        
-        document.head.appendChild(link);
-        
-        // Remove the link after a timeout to prevent memory leaks
-        setTimeout(() => {
-          if (link.parentNode) {
-            link.parentNode.removeChild(link);
+        // Create unique variable names to avoid hoisting issues
+        const linkElement = document.createElement('link');
+        const scriptSrc = script.src;
+        const timeoutId = setTimeout(() => {
+          // Clean up and resolve after timeout
+          if (linkElement.parentNode) {
+            try {
+              linkElement.parentNode.removeChild(linkElement);
+            } catch (removeError) {
+              // Ignore removal errors
+            }
           }
           resolve();
         }, 5000);
+
+        // Set up the preload link
+        linkElement.rel = 'preload';
+        linkElement.as = 'script';
+        linkElement.href = scriptSrc;
+
+        linkElement.onload = () => {
+          clearTimeout(timeoutId);
+          resolve();
+        };
+
+        linkElement.onerror = () => {
+          clearTimeout(timeoutId);
+          reject(new Error(`Failed to preload chunk: ${scriptSrc}`));
+        };
+
+        try {
+          document.head.appendChild(linkElement);
+        } catch (appendError) {
+          clearTimeout(timeoutId);
+          reject(appendError);
+        }
       });
     });
 

@@ -11,38 +11,49 @@ export default function ChunkLoadingScript() {
     // Only run on client side
     if (typeof window === 'undefined') return;
 
-    // Preload critical chunks
-    preloadCriticalChunks().catch(error => {
-      console.warn('Failed to preload critical chunks:', error);
-    });
+    let isComponentMounted = true;
+
+    // Preload critical chunks with proper error handling
+    const initializeChunkLoading = async () => {
+      try {
+        await preloadCriticalChunks();
+      } catch (error) {
+        console.warn('Failed to preload critical chunks:', error);
+      }
+    };
 
     // Add a global error handler for chunk loading
     const handleChunkError = (event: ErrorEvent) => {
-      const error = event.error;
-      
-      if (error && (
-        error.name === 'ChunkLoadError' ||
-        error.message?.includes('Loading chunk') ||
-        error.message?.includes('ChunkLoadError')
+      if (!isComponentMounted) return;
+
+      const errorObj = event.error;
+
+      if (errorObj && (
+        errorObj.name === 'ChunkLoadError' ||
+        errorObj.message?.includes('Loading chunk') ||
+        errorObj.message?.includes('ChunkLoadError')
       )) {
-        console.error('Global chunk loading error detected:', error);
-        
+        console.error('Global chunk loading error detected:', errorObj);
+
         // Show user-friendly error message
         const shouldReload = confirm(
           'A loading error occurred. The page needs to be reloaded to continue. Reload now?'
         );
-        
+
         if (shouldReload) {
           // Clear any cached chunks before reload
           if ('caches' in window) {
-            caches.keys().then(names => {
-              const chunkCaches = names.filter(name => 
-                name.includes('webpack') || 
-                name.includes('chunk') || 
-                name.includes('static')
+            caches.keys().then(cacheNames => {
+              const chunkCacheNames = cacheNames.filter(cacheName =>
+                cacheName.includes('webpack') ||
+                cacheName.includes('chunk') ||
+                cacheName.includes('static')
               );
-              return Promise.all(chunkCaches.map(name => caches.delete(name)));
+              return Promise.all(chunkCacheNames.map(cacheName => caches.delete(cacheName)));
             }).then(() => {
+              window.location.reload();
+            }).catch(() => {
+              // Fallback if cache clearing fails
               window.location.reload();
             });
           } else {
@@ -52,11 +63,15 @@ export default function ChunkLoadingScript() {
       }
     };
 
+    // Initialize chunk loading
+    initializeChunkLoading();
+
     // Add the error listener
     window.addEventListener('error', handleChunkError);
 
     // Cleanup
     return () => {
+      isComponentMounted = false;
       window.removeEventListener('error', handleChunkError);
     };
   }, []);

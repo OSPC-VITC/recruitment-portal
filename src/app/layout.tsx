@@ -96,17 +96,27 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator && typeof window !== 'undefined') {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              }
+              (function() {
+                'use strict';
+
+                function registerServiceWorker() {
+                  if ('serviceWorker' in navigator && typeof window !== 'undefined') {
+                    navigator.serviceWorker.register('/sw.js')
+                      .then(function(registration) {
+                        console.log('SW registered: ', registration);
+                      })
+                      .catch(function(registrationError) {
+                        console.log('SW registration failed: ', registrationError);
+                      });
+                  }
+                }
+
+                if (document.readyState === 'loading') {
+                  window.addEventListener('load', registerServiceWorker);
+                } else {
+                  registerServiceWorker();
+                }
+              })();
             `,
           }}
         />

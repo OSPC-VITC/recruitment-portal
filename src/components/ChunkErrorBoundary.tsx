@@ -87,17 +87,22 @@ class ChunkErrorBoundary extends Component<Props, State> {
     if (typeof window !== 'undefined') {
       // Clear any cached chunks
       if ('caches' in window) {
-        caches.keys().then(names => {
-          names.forEach(name => {
-            if (name.includes('webpack') || name.includes('chunk')) {
-              caches.delete(name);
-            }
-          });
+        caches.keys().then(cacheNames => {
+          const chunkCacheNames = cacheNames.filter(cacheName =>
+            cacheName.includes('webpack') || cacheName.includes('chunk')
+          );
+          return Promise.all(chunkCacheNames.map(cacheName => caches.delete(cacheName)));
+        }).then(() => {
+          // Force reload the page after cache clearing
+          window.location.reload();
+        }).catch(() => {
+          // Fallback if cache clearing fails
+          window.location.reload();
         });
+      } else {
+        // Force reload the page if no cache API
+        window.location.reload();
       }
-      
-      // Force reload the page
-      window.location.reload();
     }
   };
 

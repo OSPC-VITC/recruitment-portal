@@ -28,9 +28,13 @@ const AdminAuthProvider = dynamic(
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  // Setup global chunk error handling on mount
+  // Setup global chunk error handling on mount with proper error handling
   useEffect(() => {
-    setupGlobalChunkErrorHandling();
+    try {
+      setupGlobalChunkErrorHandling();
+    } catch (error) {
+      console.warn('Failed to setup global chunk error handling:', error);
+    }
   }, []);
 
   // Check if the current route is an admin route
