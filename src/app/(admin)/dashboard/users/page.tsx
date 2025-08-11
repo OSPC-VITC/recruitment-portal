@@ -309,19 +309,23 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow className="border-gray-200 dark:border-gray-800">
-                    <TableHead className="dark:text-gray-400">Name</TableHead>
-                    <TableHead className="dark:text-gray-400">Email</TableHead>
-                    <TableHead className="dark:text-gray-400">Role</TableHead>
-                    <TableHead className="dark:text-gray-400">Department</TableHead>
-                    <TableHead className="text-right dark:text-gray-400">Actions</TableHead>
+                    <TableHead className="dark:text-gray-400 min-w-[150px]">Name</TableHead>
+                    <TableHead className="dark:text-gray-400 min-w-[200px]">Email</TableHead>
+                    <TableHead className="dark:text-gray-400 min-w-[140px]">Role</TableHead>
+                    <TableHead className="dark:text-gray-400 min-w-[150px]">Department</TableHead>
+                    <TableHead className="text-right dark:text-gray-400 min-w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.email} className="border-gray-200 dark:border-gray-800">
+                    <TableRow
+                      key={user.email}
+                      className="border-gray-200 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                      onClick={() => openEditDialog(user)}
+                    >
                       <TableCell className="font-medium dark:text-white">
                         {user.name}
                       </TableCell>
@@ -342,7 +346,7 @@ export default function UsersPage() {
                       <TableCell className="dark:text-gray-300">
                         {user.department ? getDepartmentName(user.department) : "—"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"

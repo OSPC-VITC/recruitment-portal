@@ -60,16 +60,24 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <head>
         {/* Preload critical assets */}
-        <link 
-          rel="preload" 
-          href="/images/ospc_logo.png" 
-          as="image" 
+        <link
+          rel="preload"
+          href="/images/ospc_logo.png"
+          as="image"
           type="image/png"
         />
         {/* Add preconnect and dns-prefetch hints */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
+
+        {/* Improve chunk loading reliability */}
+        <link rel="dns-prefetch" href="/_next/" />
+        <link rel="preconnect" href="/_next/" />
+
+        {/* Add meta tags for better error handling */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
       </head>
       <body
         className={`${spaceMono.variable} antialiased min-h-screen bg-transparent text-foreground relative overflow-x-hidden scroll-pt-10`}
@@ -83,6 +91,25 @@ export default function RootLayout({
             {children}
           </div>
         </Providers>
+
+        {/* Service Worker Registration Script */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator && typeof window !== 'undefined') {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                      console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                      console.log('SW registration failed: ', registrationError);
+                    });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

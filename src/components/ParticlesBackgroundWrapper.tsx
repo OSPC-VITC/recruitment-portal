@@ -1,11 +1,18 @@
 "use client";
 
 import dynamic from 'next/dynamic';
+import { createRetryableImport } from '@/lib/chunkRetry';
 
-// Lazy load the particles background in a client component
+// Lazy load the particles background with retry mechanism
 const ParticlesBackground = dynamic(
-  () => import('@/components/ParticlesBackground'),
-  { ssr: false, loading: () => null } // Don't render on server, no loading placeholder
+  createRetryableImport(
+    () => import('@/components/ParticlesBackground'),
+    { maxRetries: 2, retryDelay: 1000 }
+  ),
+  {
+    ssr: false,
+    loading: () => null // Don't render on server, no loading placeholder
+  }
 );
 
 export default function ParticlesBackgroundWrapper() {

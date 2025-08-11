@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import MainParticlesLayout from "@/components/MainParticlesLayout";
-import LiquidGlassEffect from "@/components/LiquidGlassEffect";
+
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
 import { onAuthStateChanged } from "firebase/auth";
@@ -14,7 +14,7 @@ import { getUserDocument } from "@/lib/auth";
 import { useAppSettings } from "@/components/AppSettingsProvider";
 import { Sun, Moon } from "lucide-react";
 import ThemeToggle from "@/components/ui/theme-toggle";
-import Navbar from "@/components/ui/navbar";
+
 
 // Left side content for the landing page
 function LandingContent() {
@@ -112,30 +112,43 @@ export default function Home() {
   
   // Check for user authentication and redirect if already logged in
   useEffect(() => {
-    const checkAuth = async () => {
+    let unsubscribe: (() => void) | null = null;
+
+    const checkAuth = () => {
       try {
         // Check if user is already logged in
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (user) {
-            // User is already logged in, check application status
-            const userDoc = await getUserDocument();
-            if (userDoc?.applicationSubmitted) {
-              // Set the cookie for application submitted
-              document.cookie = "applicationSubmitted=true; path=/; max-age=31536000"; // 1 year
-              router.push("/status");
-            } else {
-              router.push("/user-dashboard");
+            try {
+              // User is already logged in, check application status
+              const userDoc = await getUserDocument();
+              if (userDoc?.applicationSubmitted) {
+                // Set the cookie for application submitted
+                if (typeof window !== 'undefined') {
+                  document.cookie = "applicationSubmitted=true; path=/; max-age=31536000"; // 1 year
+                }
+                router.push("/status");
+              } else {
+                router.push("/user-dashboard");
+              }
+            } catch (error) {
+              console.error("Error checking user document:", error);
             }
           }
         });
-        
-        return () => unsubscribe();
       } catch (error) {
         console.error("Auth check error:", error);
       }
     };
-    
+
     checkAuth();
+
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [router]);
   
   // If component not mounted yet, don't render anything to avoid hydration mismatch
