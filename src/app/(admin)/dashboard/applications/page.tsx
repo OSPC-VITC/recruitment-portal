@@ -89,6 +89,13 @@ export default function AdminApplicationsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // Add safety check for proper initialization
+  const [isComponentMounted, setIsComponentMounted] = useState(false);
+
+  useEffect(() => {
+    setIsComponentMounted(true);
+  }, []);
+
   // State for applications data
   const [applications, setApplications] = useState<ApplicationUser[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<ApplicationUser[]>([]);
@@ -136,14 +143,22 @@ export default function AdminApplicationsPage() {
       const urlSort = searchParams.get('sort') || "newest";
       const urlSubmission = searchParams.get('submitted') || "all";
 
-      // Only update if values have actually changed
-      if (urlSearch !== searchQuery) setSearchQuery(urlSearch);
-      if (urlStatus !== statusFilter) setStatusFilter(urlStatus);
-      if (urlDepartment !== departmentFilter) setDepartmentFilter(urlDepartment);
-      if (urlSort !== sortBy) setSortBy(urlSort);
-      if (urlSubmission !== submissionFilter) setSubmissionFilter(urlSubmission);
+      // Only update if values have actually changed - use refs to avoid circular deps
+      const currentValues = {
+        search: searchQuery,
+        status: statusFilter,
+        department: departmentFilter,
+        sort: sortBy,
+        submission: submissionFilter
+      };
+
+      if (urlSearch !== currentValues.search) setSearchQuery(urlSearch);
+      if (urlStatus !== currentValues.status) setStatusFilter(urlStatus);
+      if (urlDepartment !== currentValues.department) setDepartmentFilter(urlDepartment);
+      if (urlSort !== currentValues.sort) setSortBy(urlSort);
+      if (urlSubmission !== currentValues.submission) setSubmissionFilter(urlSubmission);
     }
-  }, [searchParams, filtersInitialized, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId]);
+  }, [searchParams, filtersInitialized, isCoreTeam, departmentId]);
 
   // Fetch applications data
   useEffect(() => {
@@ -196,10 +211,9 @@ export default function AdminApplicationsPage() {
     return () => {
       if (searchTimeout) {
         clearTimeout(searchTimeout);
-        setSearchTimeout(null);
       }
     };
-  }, [searchTimeout]);
+  }, []);
   
   // Apply filters and sorting
   useEffect(() => {
@@ -304,30 +318,31 @@ export default function AdminApplicationsPage() {
 
     const url = new URL(window.location.href);
 
-    // Get current values to build complete parameter set
-    const currentParams = {
-      search: searchQuery,
-      status: statusFilter,
-      department: departmentFilter,
-      sort: sortBy,
-      submitted: submissionFilter,
-      ...newParams // Override with new values
-    };
-
-    // Clear all existing filter params
+    // Clear all existing filter params first
     ['search', 'status', 'department', 'sort', 'submitted'].forEach(key => {
       url.searchParams.delete(key);
     });
 
-    // Set new params
-    Object.entries(currentParams).forEach(([key, value]) => {
+    // Set new params directly without depending on state
+    Object.entries(newParams).forEach(([key, value]) => {
       if (value && value !== "all" && value !== "" && value !== null) {
         url.searchParams.set(key, value);
       }
     });
 
+    // Also preserve existing params that aren't being updated
+    const currentUrl = new URL(window.location.href);
+    ['search', 'status', 'department', 'sort', 'submitted'].forEach(key => {
+      if (!(key in newParams) && currentUrl.searchParams.has(key)) {
+        const existingValue = currentUrl.searchParams.get(key);
+        if (existingValue && existingValue !== "all" && existingValue !== "") {
+          url.searchParams.set(key, existingValue);
+        }
+      }
+    });
+
     router.push(url.pathname + url.search, { scroll: false });
-  }, [filtersInitialized, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, router]);
+  }, [filtersInitialized, router]);
 
   // Reset all filters
   const resetFilters = () => {
@@ -439,17 +454,17 @@ export default function AdminApplicationsPage() {
     setSearchQuery(value);
 
     // Clear existing timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
+    setSearchTimeout(prevTimeout => {
+      if (prevTimeout) {
+        clearTimeout(prevTimeout);
+      }
 
-    // Set new timeout for URL update
-    const newTimeout = setTimeout(() => {
-      updateURLParams({ search: value });
-    }, 300); // 300ms debounce
-
-    setSearchTimeout(newTimeout);
-  }, [searchTimeout, updateURLParams]);
+      // Set new timeout for URL update
+      return setTimeout(() => {
+        updateURLParams({ search: value });
+      }, 300); // 300ms debounce
+    });
+  }, [updateURLParams]);
 
   const handleStatusChange = useCallback((value: string | null) => {
     setStatusFilter(value);
@@ -471,7 +486,7 @@ export default function AdminApplicationsPage() {
     updateURLParams({ submitted: value });
   }, [updateURLParams]);
 
-  if (loading || !filtersInitialized) {
+  if (loading || !filtersInitialized || !isComponentMounted) {
     return (
       <div className="py-8">
         <Loading size="lg" text="Loading applications..." className="py-12" />
