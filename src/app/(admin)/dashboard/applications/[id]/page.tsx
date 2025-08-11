@@ -166,28 +166,38 @@ export default function ApplicationDetail() {
         }
         
         setUserData(userData);
-        
+
         // Initialize department statuses
         const initialDeptStatuses = userData.departmentStatuses || {};
         setDepartmentStatuses(initialDeptStatuses);
-        
-        // Get application data
-        const applicationQuery = query(
-          collection(db, "applications"),
-          where("userId", "==", id)
-        );
-        
-        const appSnapshot = await getDocs(applicationQuery);
-        if (!appSnapshot.empty) {
-          const appData: ApplicationData = {
-            id: appSnapshot.docs[0].id,
-            ...appSnapshot.docs[0].data()
-          } as ApplicationData;
-          setApplicationData(appData);
-          
-          // console.log("Application data loaded:", appData);
-        } else {
-          // console.log("No application data found for user:", id);
+
+        // Get application data - applications are stored with user ID as document ID
+        try {
+          const appDoc = await getDoc(doc(db, "applications", id));
+          if (appDoc.exists()) {
+            const appData: ApplicationData = {
+              id: appDoc.id,
+              ...appDoc.data()
+            } as ApplicationData;
+            setApplicationData(appData);
+          } else {
+            // Fallback to query method for legacy data
+            const applicationQuery = query(
+              collection(db, "applications"),
+              where("userId", "==", id)
+            );
+
+            const appSnapshot = await getDocs(applicationQuery);
+            if (!appSnapshot.empty) {
+              const appData: ApplicationData = {
+                id: appSnapshot.docs[0].id,
+                ...appSnapshot.docs[0].data()
+              } as ApplicationData;
+              setApplicationData(appData);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching application data:", error);
         }
         
         // Set active tab based on user role
@@ -304,31 +314,64 @@ export default function ApplicationDetail() {
     }
   };
   
-  // Get department data from application
+  // Get department data from application with comprehensive fallback
   const getDepartmentData = (deptId: string) => {
     if (!applicationData) return null;
 
     // Normalize department ID to ensure consistency
-    const deptKey = normalizeDepartmentId(deptId);
-    
-    // Get the department data
-    const deptData = applicationData[deptKey as keyof typeof applicationData];
-    
-    // If no data found for this department, check if there are dynamic fields
-    if (!deptData && applicationData.dynamicFields) {
-      // Filter dynamic fields for this department
-      const deptDynamicFields = Object.entries(applicationData.dynamicFields as Record<string, any>)
-        .filter(([key]) => key.startsWith(`${deptKey}_`))
-        .reduce((acc, [key, value]) => {
-          acc[key] = value;
-          return acc;
-        }, {} as Record<string, any>);
-      
-      if (Object.keys(deptDynamicFields).length > 0) {
-        return { dynamicFields: deptDynamicFields };
+    const normalizedKey = normalizeDepartmentId(deptId);
+
+    // Try to get data with normalized key first
+    let deptData = applicationData[normalizedKey as keyof typeof applicationData];
+
+    // If not found with normalized key, try all possible legacy formats
+    if (!deptData) {
+      const legacyKeys = [deptId]; // Original department ID
+
+      // Add specific legacy mappings for each department
+      if (deptId === 'ai-ml') {
+        legacyKeys.push('aiMl', 'ai_ml', 'AI_ML');
+      } else if (deptId === 'open-source') {
+        legacyKeys.push('openSource', 'opensource', 'open_source', 'OPEN_SOURCE');
+      } else if (deptId === 'game-dev') {
+        legacyKeys.push('gameDev', 'gamedev', 'game_dev', 'GAME_DEV');
+      } else if (deptId === 'social-media') {
+        legacyKeys.push('socialMedia', 'social_media', 'SOCIAL_MEDIA');
+      }
+
+      // Try each legacy key
+      for (const key of legacyKeys) {
+        const data = applicationData[key as keyof typeof applicationData];
+        if (data) {
+          deptData = data;
+          break;
+        }
       }
     }
-    
+
+    // If still no data found, check if there are dynamic fields
+    if (!deptData && applicationData.dynamicFields) {
+      // Try with both normalized and legacy keys for dynamic fields
+      const allKeys = [normalizedKey, deptId];
+      if (deptId === 'ai-ml') allKeys.push('aiMl', 'ai_ml');
+      if (deptId === 'open-source') allKeys.push('openSource', 'opensource', 'open_source');
+      if (deptId === 'game-dev') allKeys.push('gameDev', 'gamedev', 'game_dev');
+      if (deptId === 'social-media') allKeys.push('socialMedia', 'social_media');
+
+      for (const keyPrefix of allKeys) {
+        const deptDynamicFields = Object.entries(applicationData.dynamicFields as Record<string, any>)
+          .filter(([key]) => key.startsWith(`${keyPrefix}_`))
+          .reduce((acc, [key, value]) => {
+            acc[key] = value;
+            return acc;
+          }, {} as Record<string, any>);
+
+        if (Object.keys(deptDynamicFields).length > 0) {
+          return { dynamicFields: deptDynamicFields };
+        }
+      }
+    }
+
     return deptData || null;
   };
   
