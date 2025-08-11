@@ -3,9 +3,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User as FirebaseUser, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
 import { auth } from "./firebase";
-import { setEmailVerificationCookie, setAuthTokenCookie, clearAuthCookies } from "./auth";
+import { getCurrentUserData, isAdmin, setEmailVerificationCookie, setAuthTokenCookie, clearAuthCookies } from "./auth";
 import { User } from "@/types";
-import { getStoredUser, storeUser, fetchUserData, checkAdminRole } from "./authStateHelpers";
+import { getStoredUser, storeUser, fetchUserData, checkAdminRole, getStoredApplicationProgress } from "./authStateHelpers";
 import { toast } from "sonner";
 import { useApplicationStore } from "./store";
 
@@ -99,9 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Force redirect to home page after a short delay
       setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = "/";
-        }
+        window.location.href = "/";
       }, 1000);
       
     } catch (error: any) {
@@ -147,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUserData(userDataFromFirestore);
             
             // Set applicationSubmitted cookie if user has submitted application
-            if (userDataFromFirestore.applicationSubmitted && typeof window !== 'undefined') {
+            if (userDataFromFirestore.applicationSubmitted) {
               document.cookie = "applicationSubmitted=true; path=/; max-age=31536000"; // 1 year
             }
           }

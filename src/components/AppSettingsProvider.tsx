@@ -72,9 +72,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
           const data = docSnapshot.data() as GeneralSettings;
           // General settings updated
           setGeneralSettings(data);
-
-          // Apply settings to document only on client side
-          if (typeof window !== 'undefined' && data.portalName) {
+          
+          // Apply settings to document
+          if (data.portalName) {
             document.title = data.portalName;
           }
         } else {

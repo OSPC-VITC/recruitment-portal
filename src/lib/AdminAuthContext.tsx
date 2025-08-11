@@ -42,8 +42,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeFromStorage = () => {
       try {
-        if (typeof window === 'undefined') return;
-
         const storedSession = localStorage.getItem(ADMIN_SESSION_KEY);
         if (storedSession) {
           const session = JSON.parse(storedSession);
@@ -89,9 +87,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           timestamp: new Date().getTime()
         };
         
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
-        }
+        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
         
         setAdminUser(admin);
         setIsAuthenticated(true);
@@ -111,9 +107,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout function
   const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(ADMIN_SESSION_KEY);
-    }
+    localStorage.removeItem(ADMIN_SESSION_KEY);
     setAdminUser(null);
     setIsAuthenticated(false);
     toast.success("You have been logged out successfully", { id: "admin-logout" });

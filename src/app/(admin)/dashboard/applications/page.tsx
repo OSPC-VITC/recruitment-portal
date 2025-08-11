@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -143,7 +143,7 @@ export default function AdminApplicationsPage() {
       if (urlSort !== sortBy) setSortBy(urlSort);
       if (urlSubmission !== submissionFilter) setSubmissionFilter(urlSubmission);
     }
-  }, [searchParams, filtersInitialized, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId]);
+  }, [searchParams, filtersInitialized]);
 
   // Fetch applications data
   useEffect(() => {
@@ -196,7 +196,6 @@ export default function AdminApplicationsPage() {
     return () => {
       if (searchTimeout) {
         clearTimeout(searchTimeout);
-        setSearchTimeout(null);
       }
     };
   }, [searchTimeout]);
@@ -299,7 +298,7 @@ export default function AdminApplicationsPage() {
   };
   
   // Update URL parameters when filters change
-  const updateURLParams = useCallback((newParams: Record<string, string | null>) => {
+  const updateURLParams = (newParams: Record<string, string | null>) => {
     if (!filtersInitialized) return; // Don't update URL during initialization
 
     const url = new URL(window.location.href);
@@ -327,7 +326,7 @@ export default function AdminApplicationsPage() {
     });
 
     router.push(url.pathname + url.search, { scroll: false });
-  }, [filtersInitialized, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, router]);
+  };
 
   // Reset all filters
   const resetFilters = () => {
@@ -434,7 +433,7 @@ export default function AdminApplicationsPage() {
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Handler functions for filters
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
 
@@ -449,29 +448,29 @@ export default function AdminApplicationsPage() {
     }, 300); // 300ms debounce
 
     setSearchTimeout(newTimeout);
-  }, [searchTimeout, updateURLParams]);
+  };
 
-  const handleStatusChange = useCallback((value: string | null) => {
+  const handleStatusChange = (value: string | null) => {
     setStatusFilter(value);
     updateURLParams({ status: value });
-  }, [updateURLParams]);
+  };
 
-  const handleDepartmentChange = useCallback((value: string) => {
+  const handleDepartmentChange = (value: string) => {
     setDepartmentFilter(value);
     updateURLParams({ department: value });
-  }, [updateURLParams]);
+  };
 
-  const handleSortChange = useCallback((value: string) => {
+  const handleSortChange = (value: string) => {
     setSortBy(value);
     updateURLParams({ sort: value });
-  }, [updateURLParams]);
+  };
 
-  const handleSubmissionChange = useCallback((value: string) => {
+  const handleSubmissionChange = (value: string) => {
     setSubmissionFilter(value);
     updateURLParams({ submitted: value });
-  }, [updateURLParams]);
+  };
 
-  if (loading || !filtersInitialized) {
+  if (loading) {
     return (
       <div className="py-8">
         <Loading size="lg" text="Loading applications..." className="py-12" />
