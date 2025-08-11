@@ -183,7 +183,11 @@ export function ApplicationsTable({
             const approvedDepts = getApprovedDepartments(application);
             
             return (
-              <Card key={application.id} className="dark:border-gray-800">
+              <Card
+                key={application.id}
+                className="dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                onClick={() => window.location.href = `/dashboard/applications/${application.id}`}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -205,6 +209,7 @@ export function ApplicationsTable({
                       size="sm"
                       asChild
                       className="h-7 w-7 p-0"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Link href={`/dashboard/applications/${application.id}`}>
                         <ChevronRight className="h-4 w-4" />
@@ -271,29 +276,29 @@ export function ApplicationsTable({
       
       {/* Applications table */}
       <div className="rounded-md border dark:border-gray-800">
-        <div className="overflow-hidden">
-          <table className="w-full caption-bottom">
+        <div className="overflow-x-auto">
+          <table className="w-full caption-bottom min-w-[1000px]">
             <thead className="border-b dark:border-gray-800">
               <tr className="bg-gray-50 dark:bg-gray-900">
-                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[150px]">
                   Name
                 </th>
-                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[200px]">
                   Email
                 </th>
-                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[120px]">
                   Registration No.
                 </th>
-                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[180px]">
                   Departments
                 </th>
-                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[130px]">
                   Submission
                 </th>
-                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[100px]">
                   Status
                 </th>
-                <th className="h-10 px-4 text-right align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                <th className="h-10 px-4 text-right align-middle text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[80px]">
                   Actions
                 </th>
               </tr>
@@ -305,9 +310,10 @@ export function ApplicationsTable({
                 const approvedDepts = getApprovedDepartments(application);
                 
                 return (
-                  <tr 
-                    key={application.id} 
-                    className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                  <tr
+                    key={application.id}
+                    onClick={() => window.location.href = `/dashboard/applications/${application.id}`}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors cursor-pointer"
                   >
                     <td className="p-4 align-middle text-sm font-medium dark:text-white">
                       {application.name || "Anonymous"}
@@ -357,7 +363,7 @@ export function ApplicationsTable({
                         <span className="text-xs font-medium capitalize">{status}</span>
                       </div>
                     </td>
-                    <td className="p-4 align-middle text-right">
+                    <td className="p-4 align-middle text-right min-w-[80px]" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="sm"

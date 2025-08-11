@@ -95,31 +95,66 @@ export default function AdminApplicationsPage() {
   const [submittedApplications, setSubmittedApplications] = useState<ApplicationUser[]>([]);
   const [nonSubmittedApplications, setNonSubmittedApplications] = useState<ApplicationUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtersInitialized, setFiltersInitialized] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
-  // Filter and sort state - initialize from URL params
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
-  const [statusFilter, setStatusFilter] = useState<string | null>(searchParams.get('status'));
-  const [departmentFilter, setDepartmentFilter] = useState(
-    searchParams.get('department') || (!isCoreTeam && departmentId ? departmentId : "all")
-  );
-  const [sortBy, setSortBy] = useState(searchParams.get('sort') || "newest");
-  const [submissionFilter, setSubmissionFilter] = useState(searchParams.get('submitted') || "all");
+  // Filter and sort state - will be initialized from URL params
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
+  const [submissionFilter, setSubmissionFilter] = useState("all");
+
+  // Initialize filters from URL parameters
+  useEffect(() => {
+    if (!filtersInitialized) {
+      const urlSearch = searchParams.get('search') || "";
+      const urlStatus = searchParams.get('status');
+      const urlDepartment = searchParams.get('department') || (!isCoreTeam && departmentId ? departmentId : "all");
+      const urlSort = searchParams.get('sort') || "newest";
+      const urlSubmission = searchParams.get('submitted') || "all";
+
+      setSearchQuery(urlSearch);
+      setStatusFilter(urlStatus);
+      setDepartmentFilter(urlDepartment);
+      setSortBy(urlSort);
+      setSubmissionFilter(urlSubmission);
+      setFiltersInitialized(true);
+    }
+  }, [searchParams, isCoreTeam, departmentId, filtersInitialized]);
+
+  // Handle URL parameter changes when navigating back/forward
+  useEffect(() => {
+    if (filtersInitialized) {
+      const urlSearch = searchParams.get('search') || "";
+      const urlStatus = searchParams.get('status');
+      const urlDepartment = searchParams.get('department') || (!isCoreTeam && departmentId ? departmentId : "all");
+      const urlSort = searchParams.get('sort') || "newest";
+      const urlSubmission = searchParams.get('submitted') || "all";
+
+      // Only update if values have actually changed
+      if (urlSearch !== searchQuery) setSearchQuery(urlSearch);
+      if (urlStatus !== statusFilter) setStatusFilter(urlStatus);
+      if (urlDepartment !== departmentFilter) setDepartmentFilter(urlDepartment);
+      if (urlSort !== sortBy) setSortBy(urlSort);
+      if (urlSubmission !== submissionFilter) setSubmissionFilter(urlSubmission);
+    }
+  }, [searchParams, filtersInitialized]);
 
   // Fetch applications data
   useEffect(() => {
     async function fetchApplications() {
       setLoading(true);
-      
+
       try {
         // Get users with applications
         const usersRef = collection(db, "users");
         let usersQuery;
-        
+
         // For department leads, only fetch applications for their department
         if (!isCoreTeam && departmentId) {
           usersQuery = query(
@@ -129,11 +164,11 @@ export default function AdminApplicationsPage() {
         } else {
           usersQuery = usersRef;
         }
-        
+
         const usersSnapshot = await getDocs(usersQuery);
-        
+
         const applicationsData: ApplicationUser[] = [];
-        
+
         // Process user data
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
@@ -143,7 +178,7 @@ export default function AdminApplicationsPage() {
             createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
           } as ApplicationUser);
         });
-        
+
         setApplications(applicationsData);
       } catch (error) {
         console.error("Error fetching applications:", error);
@@ -152,12 +187,24 @@ export default function AdminApplicationsPage() {
         setLoading(false);
       }
     }
-    
+
     fetchApplications();
   }, [isCoreTeam, departmentId]);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
   
   // Apply filters and sorting
   useEffect(() => {
+    // Only apply filters after they've been initialized from URL
+    if (!filtersInitialized) return;
+
     let result = [...applications];
 
     // Separate submitted and non-submitted applications
@@ -241,7 +288,7 @@ export default function AdminApplicationsPage() {
     setFilteredApplications(result);
     setTotalPages(Math.max(1, Math.ceil(result.length / itemsPerPage)));
     setCurrentPage(1); // Reset to first page when filters change
-  }, [applications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId]);
+  }, [applications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId, filtersInitialized]);
   
   // Get current page items
   const getCurrentItems = () => {
@@ -251,14 +298,30 @@ export default function AdminApplicationsPage() {
   };
   
   // Update URL parameters when filters change
-  const updateURLParams = (params: Record<string, string | null>) => {
+  const updateURLParams = (newParams: Record<string, string | null>) => {
+    if (!filtersInitialized) return; // Don't update URL during initialization
+
     const url = new URL(window.location.href);
 
-    Object.entries(params).forEach(([key, value]) => {
-      if (value && value !== "all" && value !== "") {
+    // Get current values to build complete parameter set
+    const currentParams = {
+      search: searchQuery,
+      status: statusFilter,
+      department: departmentFilter,
+      sort: sortBy,
+      submitted: submissionFilter,
+      ...newParams // Override with new values
+    };
+
+    // Clear all existing filter params
+    ['search', 'status', 'department', 'sort', 'submitted'].forEach(key => {
+      url.searchParams.delete(key);
+    });
+
+    // Set new params
+    Object.entries(currentParams).forEach(([key, value]) => {
+      if (value && value !== "all" && value !== "" && value !== null) {
         url.searchParams.set(key, value);
-      } else {
-        url.searchParams.delete(key);
       }
     });
 
@@ -267,16 +330,21 @@ export default function AdminApplicationsPage() {
 
   // Reset all filters
   const resetFilters = () => {
+    const defaultDepartment = !isCoreTeam && departmentId ? departmentId : "all";
+
     setSearchQuery("");
     setStatusFilter(null);
     setSubmissionFilter("all");
-    if (isCoreTeam) {
-      setDepartmentFilter("all");
-    }
+    setDepartmentFilter(defaultDepartment);
     setSortBy("newest");
 
-    // Clear URL params
-    router.push(window.location.pathname, { scroll: false });
+    // Clear URL params completely
+    const url = new URL(window.location.href);
+    ['search', 'status', 'department', 'sort', 'submitted'].forEach(key => {
+      url.searchParams.delete(key);
+    });
+
+    router.push(url.pathname + url.search, { scroll: false });
   };
   
   // Export applications as CSV
@@ -361,11 +429,25 @@ export default function AdminApplicationsPage() {
     }
   };
   
+  // Debounced search to avoid too many URL updates
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
   // Handler functions for filters
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    updateURLParams({ search: value });
+
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Set new timeout for URL update
+    const newTimeout = setTimeout(() => {
+      updateURLParams({ search: value });
+    }, 300); // 300ms debounce
+
+    setSearchTimeout(newTimeout);
   };
 
   const handleStatusChange = (value: string | null) => {
