@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, CheckCircle, XCircle, HelpCircle, Clock, Filter } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,14 +38,14 @@ interface ApplicationsTableProps {
   activeStatus?: string | null;
 }
 
-export function ApplicationsTable({ 
+export function ApplicationsTable({
   applications,
   loading,
   departmentId,
   onStatusFilter,
   activeStatus
 }: ApplicationsTableProps) {
-
+  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -186,7 +187,7 @@ export function ApplicationsTable({
               <Card
                 key={application.id}
                 className="dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
-                onClick={() => window.location.href = `/dashboard/applications/${application.id}`}
+                onClick={() => router.push(`/dashboard/applications/${application.id}`)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
@@ -312,7 +313,7 @@ export function ApplicationsTable({
                 return (
                   <tr
                     key={application.id}
-                    onClick={() => window.location.href = `/dashboard/applications/${application.id}`}
+                    onClick={() => router.push(`/dashboard/applications/${application.id}`)}
                     className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors cursor-pointer"
                   >
                     <td className="p-4 align-middle text-sm font-medium dark:text-white">
