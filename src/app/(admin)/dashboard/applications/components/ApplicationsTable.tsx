@@ -25,6 +25,8 @@ interface ApplicationUser {
   departmentStatuses?: Record<string, { status: string }>;
   createdAt?: Date;
   departments?: string[];
+  applicationSubmitted?: boolean;
+  applicationSubmittedAt?: Date;
 }
 
 interface ApplicationsTableProps {
@@ -184,14 +186,24 @@ export function ApplicationsTable({
               <Card key={application.id} className="dark:border-gray-800">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div className={`px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${statusInfo.color}`}>
-                      {statusInfo.icon}
-                      <span className="text-xs font-medium capitalize">{status}</span>
+                    <div className="flex items-center gap-2">
+                      <div className={`px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${statusInfo.color}`}>
+                        {statusInfo.icon}
+                        <span className="text-xs font-medium capitalize">{status}</span>
+                      </div>
+                      {/* Submission status badge */}
+                      <div className={`px-2 py-0.5 rounded-full inline-flex items-center gap-1 text-xs font-medium ${
+                        application.applicationSubmitted
+                          ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                          : "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+                      }`}>
+                        {application.applicationSubmitted ? "✓ Submitted" : "⏳ Not Submitted"}
+                      </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      asChild 
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
                       className="h-7 w-7 p-0"
                     >
                       <Link href={`/dashboard/applications/${application.id}`}>
@@ -276,6 +288,9 @@ export function ApplicationsTable({
                   Departments
                 </th>
                 <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Submission
+                </th>
+                <th className="h-10 px-4 text-left align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
                   Status
                 </th>
                 <th className="h-10 px-4 text-right align-middle text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -309,11 +324,11 @@ export function ApplicationsTable({
                           {application.departments.map((dept, idx) => {
                             const isApproved = approvedDepts.includes(dept);
                             return (
-                              <span 
+                              <span
                                 key={idx}
                                 className={`text-xs px-1.5 py-0.5 ${
-                                  isApproved 
-                                    ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 font-medium" 
+                                  isApproved
+                                    ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 font-medium"
                                     : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
                                 } rounded`}
                               >
@@ -326,6 +341,15 @@ export function ApplicationsTable({
                       ) : (
                         <span className="text-xs text-gray-500 dark:text-gray-500">None</span>
                       )}
+                    </td>
+                    <td className="p-4 align-middle">
+                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                        application.applicationSubmitted
+                          ? "bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                          : "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+                      }`}>
+                        {application.applicationSubmitted ? "✓ Submitted" : "⏳ Not Submitted"}
+                      </div>
                     </td>
                     <td className="p-4 align-middle">
                       <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${statusInfo.color}`}>

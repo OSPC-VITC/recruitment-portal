@@ -1,24 +1,25 @@
 "use client";
 
 import { toast } from "sonner";
-import { 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
+import {
+  doc,
+  setDoc,
+  updateDoc,
+  getDoc,
+  collection,
+  query,
+  where,
   getDocs,
   orderBy
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { 
-  TechApplicationFormData, 
-  DesignApplicationFormData, 
-  MarketingApplicationFormData 
+import {
+  TechApplicationFormData,
+  DesignApplicationFormData,
+  MarketingApplicationFormData
 } from "./schemas";
 import { User, Application } from "@/types";
+import { normalizeDepartmentId } from "./departmentMapping";
 
 // Helper to save tech form data
 export const saveTechForm = async (userId: string, data: TechApplicationFormData, existingApplicationData: any) => {
@@ -172,10 +173,11 @@ export const submitApplication = async (userId: string) => {
     
     // Validate that all required departments have forms
     const departments = userData.departments || [];
-    
+
     for (const dept of departments) {
-      if (!applicationData[dept]) {
-        const deptName = dept.charAt(0).toUpperCase() + dept.slice(1).replace(/-/g, " ");
+      const normalizedDept = normalizeDepartmentId(dept);
+      if (!applicationData[normalizedDept]) {
+        const deptName = normalizedDept.charAt(0).toUpperCase() + normalizedDept.slice(1).replace(/-/g, " ");
         toast.error(`Please complete the ${deptName} form first`, { id: `incomplete-${dept}` });
         return false;
       }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,24 +86,29 @@ interface ApplicationUser {
 export default function AdminApplicationsPage() {
   const { isCoreTeam, department } = useAdminAuth();
   const departmentId = department ? departmentToFirestoreId[department] : null;
-  
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   // State for applications data
   const [applications, setApplications] = useState<ApplicationUser[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<ApplicationUser[]>([]);
+  const [submittedApplications, setSubmittedApplications] = useState<ApplicationUser[]>([]);
+  const [nonSubmittedApplications, setNonSubmittedApplications] = useState<ApplicationUser[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
-  
-  // Filter and sort state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  // Filter and sort state - initialize from URL params
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || "");
+  const [statusFilter, setStatusFilter] = useState<string | null>(searchParams.get('status'));
   const [departmentFilter, setDepartmentFilter] = useState(
-    !isCoreTeam && departmentId ? departmentId : "all"
+    searchParams.get('department') || (!isCoreTeam && departmentId ? departmentId : "all")
   );
-  const [sortBy, setSortBy] = useState("newest");
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || "newest");
+  const [submissionFilter, setSubmissionFilter] = useState(searchParams.get('submitted') || "all");
 
   // Fetch applications data
   useEffect(() => {
@@ -153,7 +159,22 @@ export default function AdminApplicationsPage() {
   // Apply filters and sorting
   useEffect(() => {
     let result = [...applications];
-    
+
+    // Separate submitted and non-submitted applications
+    const submitted = applications.filter(app => app.applicationSubmitted === true);
+    const nonSubmitted = applications.filter(app => app.applicationSubmitted !== true);
+
+    setSubmittedApplications(submitted);
+    setNonSubmittedApplications(nonSubmitted);
+
+    // Apply submission filter first
+    if (submissionFilter === "submitted") {
+      result = submitted;
+    } else if (submissionFilter === "not-submitted") {
+      result = nonSubmitted;
+    }
+    // If "all", keep all applications
+
     // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -164,7 +185,7 @@ export default function AdminApplicationsPage() {
           app.regNo?.toLowerCase().includes(query)
       );
     }
-    
+
     // Apply status filter
     if (statusFilter) {
       if (!isCoreTeam && departmentId) {
@@ -181,10 +202,10 @@ export default function AdminApplicationsPage() {
         result = result.filter((app) => app.status === statusFilter);
       }
     }
-    
+
     // Apply department filter (only for core team)
     if (isCoreTeam && departmentFilter !== "all") {
-      result = result.filter((app) => 
+      result = result.filter((app) =>
         app.departments?.includes(departmentFilter)
       );
     }
@@ -220,7 +241,7 @@ export default function AdminApplicationsPage() {
     setFilteredApplications(result);
     setTotalPages(Math.max(1, Math.ceil(result.length / itemsPerPage)));
     setCurrentPage(1); // Reset to first page when filters change
-  }, [applications, searchQuery, statusFilter, departmentFilter, sortBy, isCoreTeam, departmentId]);
+  }, [applications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId]);
   
   // Get current page items
   const getCurrentItems = () => {
@@ -229,14 +250,33 @@ export default function AdminApplicationsPage() {
     return filteredApplications.slice(startIndex, endIndex);
   };
   
+  // Update URL parameters when filters change
+  const updateURLParams = (params: Record<string, string | null>) => {
+    const url = new URL(window.location.href);
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value && value !== "all" && value !== "") {
+        url.searchParams.set(key, value);
+      } else {
+        url.searchParams.delete(key);
+      }
+    });
+
+    router.push(url.pathname + url.search, { scroll: false });
+  };
+
   // Reset all filters
   const resetFilters = () => {
     setSearchQuery("");
     setStatusFilter(null);
+    setSubmissionFilter("all");
     if (isCoreTeam) {
       setDepartmentFilter("all");
     }
     setSortBy("newest");
+
+    // Clear URL params
+    router.push(window.location.pathname, { scroll: false });
   };
   
   // Export applications as CSV
@@ -323,19 +363,29 @@ export default function AdminApplicationsPage() {
   
   // Handler functions for filters
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+    const value = e.target.value;
+    setSearchQuery(value);
+    updateURLParams({ search: value });
   };
-  
+
   const handleStatusChange = (value: string | null) => {
     setStatusFilter(value);
+    updateURLParams({ status: value });
   };
-  
+
   const handleDepartmentChange = (value: string) => {
     setDepartmentFilter(value);
+    updateURLParams({ department: value });
   };
-  
+
   const handleSortChange = (value: string) => {
     setSortBy(value);
+    updateURLParams({ sort: value });
+  };
+
+  const handleSubmissionChange = (value: string) => {
+    setSubmissionFilter(value);
+    updateURLParams({ submitted: value });
   };
 
   if (loading) {
@@ -396,10 +446,52 @@ export default function AdminApplicationsPage() {
               />
             </div>
             
+            {/* Filter row 1 */}
             <div className="flex flex-col md:flex-row gap-3">
+              {/* Submission Status filter */}
+              <div className="w-full md:w-1/4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-gray-500 dark:text-gray-400">Submission Status</Label>
+                  <Select
+                    value={submissionFilter}
+                    onValueChange={handleSubmissionChange}
+                  >
+                    <SelectTrigger className="dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 h-9">
+                      <SelectValue placeholder="All applications" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-gray-900 dark:border-gray-700">
+                      <SelectItem value="all">All Applications ({applications.length})</SelectItem>
+                      <SelectItem value="submitted">Submitted ({submittedApplications.length})</SelectItem>
+                      <SelectItem value="not-submitted">Not Submitted ({nonSubmittedApplications.length})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Application Status filter */}
+              <div className="w-full md:w-1/4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-gray-500 dark:text-gray-400">Application Status</Label>
+                  <Select
+                    value={statusFilter || "all"}
+                    onValueChange={(value) => handleStatusChange(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger className="dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300 h-9">
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-gray-900 dark:border-gray-700">
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {/* Department filter - for core team only */}
               {isCoreTeam && (
-                <div className="w-full md:w-1/3">
+                <div className="w-full md:w-1/4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-gray-500 dark:text-gray-400">Department</Label>
                     <Select
@@ -421,9 +513,9 @@ export default function AdminApplicationsPage() {
                   </div>
                 </div>
               )}
-              
+
               {/* Sort filter */}
-              <div className="w-full md:w-1/3">
+              <div className="w-full md:w-1/4">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-gray-500 dark:text-gray-400">Sort by</Label>
                   <Select
@@ -440,6 +532,26 @@ export default function AdminApplicationsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </div>
+
+            {/* Summary counts */}
+            <div className="flex flex-wrap gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Total: </span>
+                <span className="font-semibold dark:text-white">{applications.length}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Submitted: </span>
+                <span className="font-semibold text-green-600 dark:text-green-400">{submittedApplications.length}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Not Submitted: </span>
+                <span className="font-semibold text-orange-600 dark:text-orange-400">{nonSubmittedApplications.length}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Filtered Results: </span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">{filteredApplications.length}</span>
               </div>
             </div>
           </div>

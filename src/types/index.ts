@@ -122,18 +122,20 @@ export interface SocialMediaApplication {
 
 export interface Application {
   userId: string;
-  tech?: TechApplication;
-  design?: DesignApplication;
-  marketing?: MarketingApplication;
-  aiMl?: AiMlApplication;
-  dev?: DevApplication;
-  openSource?: OpenSourceApplication;
-  gameDev?: GameDevApplication;
-  cybersec?: CybersecApplication;
-  robotics?: RoboticsApplication;
-  events?: EventsApplication;
-  socialMedia?: SocialMediaApplication;
+  // Standard department format (hyphenated) - primary interface
+  'ai-ml'?: AiMlApplication;
+  'dev'?: DevApplication;
+  'open-source'?: OpenSourceApplication;
+  'game-dev'?: GameDevApplication;
+  'cybersec'?: CybersecApplication;
+  'robotics'?: RoboticsApplication;
+  'events'?: EventsApplication;
+  'design'?: DesignApplication;
+  'marketing'?: MarketingApplication;
+  'social-media'?: SocialMediaApplication;
+
   submittedAt: any; // Using any for timestamp
+  [key: string]: any; // Allow dynamic keys for backward compatibility and migration
 }
 
 export interface DepartmentSelection {
@@ -144,13 +146,13 @@ export interface DepartmentSelection {
 // Convert departments array to a Record/object for easier lookups
 export const DEPARTMENTS: Record<string, string> = {
   'ai-ml': 'AI & ML',
-  'dev': 'Dev',
-  'opensource': 'Open Source & Research',
-  'gamedev': 'Game Dev',
+  'dev': 'Development',
+  'open-source': 'Open Source & Research',
+  'game-dev': 'Game Development',
   'cybersec': 'CyberSec & Blockchain',
   'robotics': 'Robotics & IoT',
-  'events': 'Management',
-  'design': 'Design',
+  'events': 'Event Operations & Management',
+  'design': 'Design & Content',
   'marketing': 'Marketing',
   'social-media': 'Social Media'
 };

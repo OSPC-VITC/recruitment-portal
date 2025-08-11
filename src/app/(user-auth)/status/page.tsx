@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { getApplication } from "@/lib/firebaseHelpers";
 import { Application, TechApplication, DesignApplication, MarketingApplication, DEPARTMENTS, DepartmentStatus } from "@/types";
 import AuthCheck from "@/components/AuthCheck";
+import { normalizeDepartmentId } from "@/lib/departmentMapping";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import Image from "next/image";
@@ -284,15 +285,16 @@ export default function StatusPage() {
         setApplication(applicationData);
       } catch (error: any) {
         console.error("Error fetching application:", error);
-        
+
         // User-friendly error messages without exposing Firebase details
         if (error?.code === 'permission-denied') {
           toast.error("Unable to access application data", {
             id: "status-permission-error"
           });
         } else if (error?.code === 'not-found') {
-          toast.error("Application not found", {
-            id: "status-not-found-error"
+          // Show a more helpful message for not found
+          toast.info("No application data found. Please submit your application first.", {
+            id: "status-not-found-info"
           });
         } else {
           toast.error("Unable to load application data", {
@@ -353,11 +355,7 @@ export default function StatusPage() {
   
   // Function to render dynamic fields from responses
   const renderDynamicFields = (deptId: string) => {
-    if (!application) return null;
-    
-    const deptKey = formatDeptKey(deptId);
-    const deptData = application[deptKey];
-    
+    const deptData = getDepartmentData(deptId);
     if (!deptData || !deptData.dynamicFields) return null;
     
     return (
@@ -383,15 +381,35 @@ export default function StatusPage() {
     );
   };
   
-  // Helper to format dept key
+  // Helper to format dept key - now uses centralized mapping
   const formatDeptKey = (deptId: string): string => {
-    switch (deptId) {
-      case "ai-ml": return "aiMl";
-      case "open-source": return "openSource";
-      case "game-dev": return "gameDev";
-      case "social-media": return "socialMedia";
-      default: return deptId;
+    return normalizeDepartmentId(deptId);
+  };
+
+  // Helper to get department data with fallback to legacy formats
+  const getDepartmentData = (deptId: string) => {
+    if (!application) return null;
+
+    const normalizedKey = formatDeptKey(deptId);
+    let deptData = application[normalizedKey];
+
+    // If not found with normalized key, try legacy formats
+    if (!deptData) {
+      const legacyKeys = [deptId];
+      if (deptId === 'ai-ml') legacyKeys.push('aiMl');
+      if (deptId === 'open-source') legacyKeys.push('openSource', 'opensource');
+      if (deptId === 'game-dev') legacyKeys.push('gameDev', 'gamedev');
+      if (deptId === 'social-media') legacyKeys.push('socialMedia');
+
+      for (const key of legacyKeys) {
+        if (application[key]) {
+          deptData = application[key];
+          break;
+        }
+      }
     }
+
+    return deptData;
   };
   
   // Function to render tech application details
@@ -552,8 +570,7 @@ export default function StatusPage() {
             
             {typedUserData?.departments?.map((dept) => {
               const deptStatus = departmentStatuses[dept] || { status: "pending" };
-              const deptKey = formatDeptKey(dept);
-              const deptData = application?.[deptKey];
+              const deptData = getDepartmentData(dept);
               
               return (
                 <Card key={dept} className="bg-white/0 dark:bg-zinc-800/0 backdrop-blur-sm">
@@ -577,12 +594,12 @@ export default function StatusPage() {
                     )}
                     
                     {/* Show application details */}
-                    {deptData && (
+                    {deptData ? (
                       <div className="p-1">
                         <h3 className="font-medium text-gray-700 dark:text-white mb-3">Your Application</h3>
-                        
+
                         {/* Render department-specific application data */}
-                        {dept === "dev" || dept === "ai-ml" || dept === "open-source" || 
+                        {dept === "dev" || dept === "ai-ml" || dept === "open-source" ||
                          dept === "cybersec" || dept === "robotics" || dept === "game-dev" ? (
                           renderTechApplication(deptData as TechApplication)
                         ) : dept === "design" ? (
@@ -590,9 +607,15 @@ export default function StatusPage() {
                         ) : dept === "marketing" || dept === "social-media" || dept === "events" ? (
                           renderMarketingApplication(deptData as MarketingApplication)
                         ) : null}
-                        
+
                         {/* Render dynamic fields */}
                         {renderDynamicFields(dept)}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-gray-50/30 dark:bg-zinc-700/20 rounded-md backdrop-blur-sm">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          No application data found for this department. Please ensure you have submitted your application.
+                        </p>
                       </div>
                     )}
                   </CardContent>

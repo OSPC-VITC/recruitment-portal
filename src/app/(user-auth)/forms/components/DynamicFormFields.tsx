@@ -50,15 +50,9 @@ export function DynamicFormFields({
       setError(null);
       
       try {
-        // Normalize department ID for Firestore query
-        const normalizedDeptId = departmentId === 'ai-ml' ? 'aiMl' : 
-                               departmentId === 'open-source' ? 'openSource' :
-                               departmentId === 'game-dev' ? 'gameDev' :
-                               departmentId === 'social-media' ? 'socialMedia' :
-                               departmentId;
-        
-        // console.log(`Fetching form fields for department: ${departmentId} (normalized: ${normalizedDeptId})`);
-        
+        // Use departmentId directly - no normalization needed for Firestore query
+        // The departmentId should already be in the correct format
+
         const fieldQuery = query(
           collection(db, "formFields"),
           where("departmentId", "==", departmentId)

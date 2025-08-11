@@ -16,6 +16,8 @@ import UserNavbar from "@/components/ui/user-navbar";
 import { Loading } from "@/components/ui/loading";
 import { isBefore } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
+import { normalizeDepartmentId } from "@/lib/departmentMapping";
+import { DEPARTMENTS } from "@/types";
 
 // Import form components
 import AiMlForm from "./components/AiMlForm";
@@ -29,21 +31,8 @@ import DesignForm from "./components/DesignForm";
 import MarketingForm from "./components/MarketingForm";
 import SocialMediaForm from "./components/SocialMediaForm";
 
-// Department name mapping
-const DEPARTMENT_NAMES: Record<string, string> = {
-  'ai-ml': 'AI & ML',
-  'dev': 'Development',
-  'opensource': 'Open Source',
-  'open-source': 'Open Source',
-  'gamedev': 'Game Dev',
-  'game-dev': 'Game Dev',
-  'cybersec': 'Cybersecurity',
-  'robotics': 'Robotics',
-  'events': 'Management',
-  'design': 'Design',
-  'marketing': 'Marketing',
-  'social-media': 'Social Media'
-};
+// Use centralized department names from types
+const DEPARTMENT_NAMES = DEPARTMENTS;
 
 export default function FormsPage() {
   const router = useRouter();

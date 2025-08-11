@@ -194,7 +194,9 @@ export default function AdminDashboardPage() {
     approvedApplications: 0,
     rejectedApplications: 0,
     totalUsers: 0,
-    totalQuestions: 0
+    totalQuestions: 0,
+    submittedApplications: 0,
+    notSubmittedApplications: 0
   });
   
   // New state for department-specific stats (for core team view)
@@ -228,7 +230,20 @@ export default function AdminDashboardPage() {
         
         const usersSnap = await getDocs(usersQuery);
         const totalUsers = usersSnap.size;
-        
+
+        // Calculate submission stats
+        let submittedCount = 0;
+        let notSubmittedCount = 0;
+
+        usersSnap.docs.forEach(doc => {
+          const userData = doc.data();
+          if (userData.applicationSubmitted === true) {
+            submittedCount++;
+          } else {
+            notSubmittedCount++;
+          }
+        });
+
         // Get application stats
         let applicationsRef = collection(db, "applications");
         const applicationsSnap = await getDocs(applicationsRef);
@@ -279,7 +294,9 @@ export default function AdminDashboardPage() {
             approvedApplications: approvedCount,
             rejectedApplications: rejectedCount,
             totalUsers,
-            totalQuestions
+            totalQuestions,
+            submittedApplications: submittedCount,
+            notSubmittedApplications: notSubmittedCount
           });
         } else {
           // For core team, each user application is counted as one, not per department
@@ -366,7 +383,9 @@ export default function AdminDashboardPage() {
             approvedApplications: totalApproved,
             rejectedApplications: totalRejected,
             totalUsers,
-            totalQuestions
+            totalQuestions,
+            submittedApplications: submittedCount,
+            notSubmittedApplications: notSubmittedCount
           });
         }
         
@@ -448,6 +467,28 @@ export default function AdminDashboardPage() {
             icon={<XCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-red-600 dark:text-red-400" />}
             color="bg-red-100 dark:bg-red-900/30"
           />
+        </div>
+
+        {/* Submission Status Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mt-4">
+          <Link href="/dashboard/applications?submitted=submitted" className="block">
+            <StatCard
+              title="Submitted Applications"
+              value={stats.submittedApplications}
+              description="Completed submissions"
+              icon={<CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-600 dark:text-green-400" />}
+              color="bg-green-100 dark:bg-green-900/30"
+            />
+          </Link>
+          <Link href="/dashboard/applications?submitted=not-submitted" className="block">
+            <StatCard
+              title="Not Submitted"
+              value={stats.notSubmittedApplications}
+              description="Incomplete applications"
+              icon={<Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-600 dark:text-orange-400" />}
+              color="bg-orange-100 dark:bg-orange-900/30"
+            />
+          </Link>
         </div>
       </div>
       

@@ -17,6 +17,7 @@ import { db } from "@/lib/firebase";
 import AuthCheck from "@/components/AuthCheck";
 import { useApplicationStore } from "@/lib/store";
 import { Loading } from "@/components/ui/loading";
+import { normalizeDepartmentId } from "@/lib/departmentMapping";
 
 // Enhanced StatusBadge component with better dark theme support
 const StatusBadge = ({ 
@@ -74,6 +75,7 @@ export default function ReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   
   // Get application data from store
   const { applicationData, resetApplicationData } = useApplicationStore();
@@ -136,23 +138,34 @@ export default function ReviewPage() {
   
   const getCompletedDepartments = () => {
     if (!application) return [];
-    
+
     const departments = getUserDepartments();
     return departments.filter(dept => {
       // Check if this department's form has been completed
-      return application[formatDeptKey(dept)] !== undefined;
+      const normalizedKey = normalizeDepartmentId(dept);
+      const legacyApp = application as any;
+
+      // Check both normalized format and any possible legacy formats
+      if (application[normalizedKey] !== undefined) {
+        return true;
+      }
+
+      // Check all possible legacy formats for this department
+      const possibleKeys = [dept, normalizedKey];
+
+      // Add specific legacy mappings
+      if (dept === 'ai-ml') possibleKeys.push('aiMl');
+      if (dept === 'open-source') possibleKeys.push('openSource', 'opensource');
+      if (dept === 'game-dev') possibleKeys.push('gameDev', 'gamedev');
+      if (dept === 'social-media') possibleKeys.push('socialMedia');
+
+      return possibleKeys.some(key => legacyApp[key] !== undefined);
     });
   };
   
   // Format department key for the application object
   const formatDeptKey = (deptId: string) => {
-    switch (deptId) {
-      case "ai-ml": return "aiMl";
-      case "open-source": return "openSource";
-      case "game-dev": return "gameDev";
-      case "social-media": return "socialMedia";
-      default: return deptId;
-    }
+    return normalizeDepartmentId(deptId);
   };
   
   const isApplicationComplete = () => {
@@ -171,46 +184,120 @@ export default function ReviewPage() {
   
   const submitApplication = async () => {
     if (!user) return;
-    
+
     setSubmitting(true);
-    
+
+    // Queue-based submission with retry logic
+    const submitWithRetry = async (retryCount = 0): Promise<void> => {
+      const maxRetries = 3;
+      const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+
+      try {
+        // Show queue position if retrying
+        if (retryCount > 0) {
+          setQueuePosition(retryCount);
+          toast.info(`Retrying submission... (Attempt ${retryCount + 1}/${maxRetries + 1})`, {
+            id: "submission-retry"
+          });
+        } else {
+          setQueuePosition(1);
+        }
+
+        // Collect all form data from store
+        const submissionData = { ...applicationData };
+
+        // Migrate any old format keys to standardized format for backward compatibility
+        const migratedData = { ...submissionData } as any;
+        const legacyData = submissionData as any; // Type assertion for migration
+
+        // Migrate all possible legacy formats to standard format
+        Object.keys(legacyData).forEach(key => {
+          const normalizedKey = normalizeDepartmentId(key);
+          if (normalizedKey !== key && legacyData[key]) {
+            migratedData[normalizedKey] = legacyData[key];
+            delete migratedData[key];
+          }
+        });
+
+        // Add submission metadata
+        migratedData.submittedAt = new Date();
+        migratedData.userId = user.uid;
+
+        // Submit application data with timeout
+        const docRef = doc(db, "applications", user.uid);
+        await Promise.race([
+          setDoc(docRef, migratedData),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Submission timeout')), 30000)
+          )
+        ]);
+
+        // Update user document to mark application as submitted
+        const userDocRef = doc(db, "users", user.uid);
+        await Promise.race([
+          updateDoc(userDocRef, {
+            applicationSubmitted: true,
+            applicationSubmittedAt: new Date()
+          }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('User update timeout')), 15000)
+          )
+        ]);
+
+      } catch (error: any) {
+        // Handle specific error types that should trigger retry
+        const shouldRetry = retryCount < maxRetries && (
+          error.code === 'unavailable' ||
+          error.code === 'deadline-exceeded' ||
+          error.code === 'resource-exhausted' ||
+          error.message?.includes('timeout') ||
+          error.message?.includes('network')
+        );
+
+        if (shouldRetry) {
+          toast.dismiss("submission-retry");
+          toast.warning(`Network issue detected. Retrying in ${retryDelay/1000}s...`, {
+            id: "submission-queue"
+          });
+
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          return submitWithRetry(retryCount + 1);
+        } else {
+          // Final failure - throw error to be caught by outer try-catch
+          throw error;
+        }
+      }
+    };
+
     try {
-      // Collect all form data from store
-      const submissionData = { ...applicationData };
-      
-      // Add submission metadata
-      submissionData.submittedAt = new Date();
-      submissionData.userId = user.uid;
-      
-      // Submit application data
-      const docRef = doc(db, "applications", user.uid);
-      await setDoc(docRef, submissionData);
-      
-      // Update user document to mark application as submitted
-      const userDocRef = doc(db, "users", user.uid);
-      await updateDoc(userDocRef, {
-        applicationSubmitted: true,
-        applicationSubmittedAt: new Date()
-      });
-      
+      // Start the queued submission process
+      await submitWithRetry();
+
+      // Success - dismiss any retry messages
+      toast.dismiss("submission-retry");
+      toast.dismiss("submission-queue");
+      setQueuePosition(null);
+
       // Set application submitted cookie
       document.cookie = "applicationSubmitted=true; path=/; max-age=31536000"; // 1 year
-      
+
       // Update local state
       setIsSubmitted(true);
       setShowSuccessMessage(true);
-      
+
       // Reset store data after successful submission
       resetApplicationData();
-      
+
       toast.success("Your application has been submitted!", { id: "application-submitted" });
-      
+
       // Redirect to status page after a short delay
       setTimeout(() => {
         router.push('/status');
       }, 1500);
     } catch (error) {
       // Handle error submitting application
+      setQueuePosition(null);
       toast.error("Failed to submit your application. Please try again.", { id: "submit-error" });
     } finally {
       setSubmitting(false);
@@ -495,7 +582,9 @@ export default function ReviewPage() {
                       {submitting ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">Submitting...</span>
+                          <span className="truncate">
+                            {queuePosition ? `In Queue (${queuePosition})...` : 'Submitting...'}
+                          </span>
                         </>
                       ) : isSubmitted ? (
                         <>
@@ -723,7 +812,9 @@ export default function ReviewPage() {
                       {submitting ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">Submitting...</span>
+                          <span className="truncate">
+                            {queuePosition ? `In Queue (${queuePosition})...` : 'Submitting...'}
+                          </span>
                         </>
                       ) : isSubmitted ? (
                         <>

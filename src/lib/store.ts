@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, Application, TechApplication, DesignApplication, MarketingApplication } from '@/types';
 import { storeApplicationProgress, getStoredApplicationProgress, clearStoredApplicationProgress } from './authStateHelpers';
+import { normalizeDepartmentId } from './departmentMapping';
 
 interface ApplicationState {
   // User data
@@ -19,16 +20,16 @@ interface ApplicationState {
   
   // Application form data
   applicationData: {
-    aiMl?: any;
-    dev?: any;
-    openSource?: any;
-    gameDev?: any;
-    cybersec?: any;
-    robotics?: any;
-    events?: any;
-    design?: any;
-    marketing?: any;
-    socialMedia?: any;
+    'ai-ml'?: any;
+    'dev'?: any;
+    'open-source'?: any;
+    'game-dev'?: any;
+    'cybersec'?: any;
+    'robotics'?: any;
+    'events'?: any;
+    'design'?: any;
+    'marketing'?: any;
+    'social-media'?: any;
     userId?: string;
     submittedAt?: any;
   };
@@ -130,17 +131,12 @@ export const useApplicationStore = create<ApplicationState>()(
       applicationData: {},
       
       // Method to update form data for any department
-      updateFormData: (department: string, data: any) => 
+      updateFormData: (department: string, data: any) =>
         set((state) => {
-          // Normalize department names
-          const deptKey = department === 'ai-ml' ? 'aiMl' : 
-                        department === 'open-source' ? 'openSource' :
-                        department === 'game-dev' ? 'gameDev' :
-                        department === 'social-media' ? 'socialMedia' :
-                        department;
-          
+          // Normalize department ID to standard format
+          const deptKey = normalizeDepartmentId(department);
+
           // Updating form data
-          
           const newState = {
             applicationData: {
               ...state.applicationData,
@@ -150,26 +146,21 @@ export const useApplicationStore = create<ApplicationState>()(
               },
             },
           };
-          
+
           // Auto-save progress if user is set
           if (state.user?.id) {
             setTimeout(() => {
               get().saveProgress(state.user!.id);
             }, 0);
           }
-          
+
           return newState;
         }),
         
       // Method to get form data for a department
       getFormData: (department: string) => {
         const state = get();
-        const deptKey = department === 'ai-ml' ? 'aiMl' : 
-                     department === 'open-source' ? 'openSource' :
-                     department === 'game-dev' ? 'gameDev' :
-                     department === 'social-media' ? 'socialMedia' :
-                     department;
-                     
+        const deptKey = normalizeDepartmentId(department);
         return state.applicationData[deptKey as keyof typeof state.applicationData] || {};
       },
       

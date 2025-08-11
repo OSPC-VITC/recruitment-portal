@@ -59,6 +59,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { departmentToFirestoreId } from "@/lib/adminConfig";
+import { normalizeDepartmentId } from "@/lib/departmentMapping";
 
 // Status badge component for this page
 function ApplicationStatusBadge({ status }: { status: string }) {
@@ -306,16 +307,9 @@ export default function ApplicationDetail() {
   // Get department data from application
   const getDepartmentData = (deptId: string) => {
     if (!applicationData) return null;
-    
-    // Convert department ID to the format used in the application data
-    let deptKey;
-    switch (deptId) {
-      case "ai-ml": deptKey = "aiMl"; break;
-      case "open-source": deptKey = "openSource"; break;
-      case "game-dev": deptKey = "gameDev"; break;
-      case "social-media": deptKey = "socialMedia"; break;
-      default: deptKey = deptId;
-    }
+
+    // Normalize department ID to ensure consistency
+    const deptKey = normalizeDepartmentId(deptId);
     
     // Get the department data
     const deptData = applicationData[deptKey as keyof typeof applicationData];

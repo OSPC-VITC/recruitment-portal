@@ -1,6 +1,7 @@
 "use client";
 
 import { adminCredentials } from "./adminCredentials";
+import { DEPARTMENT_IDS } from "./departmentMapping";
 
 // Admin user types
 export type AdminRole = 'core_team' | 'dept_lead';
@@ -24,18 +25,18 @@ export interface AdminUser {
   name: string;
 }
 
-// Map department IDs to Firestore collection IDs
+// Map department IDs to Firestore collection IDs - uses centralized mapping
 export const departmentToFirestoreId: Record<DepartmentId, string> = {
-  event_ops: 'events',
-  design_content: 'design',
-  marketing: 'marketing',
-  social_media: 'social-media',
-  open_source: 'opensource',
-  ai_ml: 'ai-ml',
-  development: 'dev',
-  game_dev: 'gamedev',
-  cybersec_blockchain: 'cybersec',
-  robotics_iot: 'robotics'
+  event_ops: DEPARTMENT_IDS.EVENTS,
+  design_content: DEPARTMENT_IDS.DESIGN,
+  marketing: DEPARTMENT_IDS.MARKETING,
+  social_media: DEPARTMENT_IDS.SOCIAL_MEDIA,
+  open_source: DEPARTMENT_IDS.OPEN_SOURCE,
+  ai_ml: DEPARTMENT_IDS.AI_ML,
+  development: DEPARTMENT_IDS.DEV,
+  game_dev: DEPARTMENT_IDS.GAME_DEV,
+  cybersec_blockchain: DEPARTMENT_IDS.CYBERSEC,
+  robotics_iot: DEPARTMENT_IDS.ROBOTICS
 };
 
 // Admin users data - now loaded from adminCredentials
