@@ -62,7 +62,7 @@ export function DepartmentStatistics({
   // Calculate statistics for each department
   const calculateDepartmentStats = (): DepartmentStats[] => {
     const departmentStatsMap = new Map<string, DepartmentStats>();
-    
+
     // Initialize stats for all departments
     Object.values(DEPARTMENT_IDS).forEach(deptId => {
       const normalizedId = normalizeDepartmentId(deptId);
@@ -80,38 +80,43 @@ export function DepartmentStatistics({
 
     // Process applications
     applications.forEach(app => {
-      if (!app.departments || app.departments.length === 0) return;
+      if (!app.departments || app.departments.length === 0) {
+        return;
+      }
 
       app.departments.forEach(deptId => {
         const normalizedDeptId = normalizeDepartmentId(deptId);
         const stats = departmentStatsMap.get(normalizedDeptId);
-        
-        if (stats) {
-          stats.totalApplications++;
-          
-          if (app.applicationSubmitted) {
-            stats.submittedApplications++;
-          } else {
-            stats.nonSubmittedApplications++;
-          }
 
-          // Check department-specific status first, then overall status
-          let status = app.status || 'pending';
-          if (app.departmentStatuses && app.departmentStatuses[normalizedDeptId]) {
-            status = app.departmentStatuses[normalizedDeptId].status || status;
-          }
+        if (!stats) {
+          return;
+        }
 
-          switch (status) {
-            case 'approved':
-              stats.approvedApplications++;
-              break;
-            case 'rejected':
-              stats.rejectedApplications++;
-              break;
-            default:
-              stats.pendingApplications++;
-              break;
-          }
+        stats.totalApplications++;
+
+        // Check submission status
+        if (app.applicationSubmitted === true) {
+          stats.submittedApplications++;
+        } else {
+          stats.nonSubmittedApplications++;
+        }
+
+        // Check department-specific status first, then overall status
+        let status = app.status || 'pending';
+        if (app.departmentStatuses && app.departmentStatuses[normalizedDeptId]) {
+          status = app.departmentStatuses[normalizedDeptId].status || status;
+        }
+
+        switch (status) {
+          case 'approved':
+            stats.approvedApplications++;
+            break;
+          case 'rejected':
+            stats.rejectedApplications++;
+            break;
+          default:
+            stats.pendingApplications++;
+            break;
         }
       });
     });

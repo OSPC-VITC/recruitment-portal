@@ -87,7 +87,12 @@ interface ApplicationUser {
 
 export default function AdminApplicationsPage() {
   const { isCoreTeam, department } = useAdminAuth();
+
+  // Fix the department ID mapping chain
+  // 1. Admin credentials store department in DepartmentId format (e.g., 'event_ops', 'design_content')
+  // 2. We need to convert this to the normalized Firestore format (e.g., 'events', 'design')
   const departmentId = department ? departmentToFirestoreId[department] : null;
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -99,8 +104,9 @@ export default function AdminApplicationsPage() {
   }, []);
 
   // State for applications data
-  const [applications, setApplications] = useState<ApplicationUser[]>([]);
-  const [filteredApplications, setFilteredApplications] = useState<ApplicationUser[]>([]);
+  const [applications, setApplications] = useState<ApplicationUser[]>([]); // All applications for statistics
+  const [departmentApplications, setDepartmentApplications] = useState<ApplicationUser[]>([]); // Department-specific for dept leads
+  const [filteredApplications, setFilteredApplications] = useState<ApplicationUser[]>([]); // Filtered for table display
   const [submittedApplications, setSubmittedApplications] = useState<ApplicationUser[]>([]);
   const [nonSubmittedApplications, setNonSubmittedApplications] = useState<ApplicationUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,23 +174,10 @@ export default function AdminApplicationsPage() {
       setLoading(true);
 
       try {
-        // Get users with applications
+        // Always fetch ALL applications for accurate statistics
+        // We'll filter them in the UI, not at the database level
         const usersRef = collection(db, "users");
-        let usersQuery;
-
-        // For department leads, fetch applications for their department using normalized ID
-        if (!isCoreTeam && departmentId) {
-          const normalizedDeptId = normalizeDepartmentId(departmentId);
-          usersQuery = query(
-            usersRef,
-            where("departments", "array-contains", normalizedDeptId)
-          );
-        } else {
-          // For core team, fetch all applications
-          usersQuery = usersRef;
-        }
-
-        const usersSnapshot = await getDocs(usersQuery);
+        const usersSnapshot = await getDocs(usersRef);
 
         const applicationsData: ApplicationUser[] = [];
 
@@ -192,24 +185,44 @@ export default function AdminApplicationsPage() {
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
 
-          // Normalize department IDs in the application data
-          const normalizedDepartments = userData.departments?.map((dept: string) =>
-            normalizeDepartmentId(dept)
-          ) || [];
+          // Only include users who have departments (i.e., have applied)
+          if (!userData.departments || userData.departments.length === 0) {
+            return; // Skip users who haven't applied to any department
+          }
 
-          applicationsData.push({
+          // Normalize department IDs in the application data
+          const originalDepartments = userData.departments || [];
+          const normalizedDepartments = originalDepartments.map((dept: string) =>
+            normalizeDepartmentId(dept)
+          );
+
+          const applicationUser: ApplicationUser = {
             id: doc.id,
             ...userData,
             departments: normalizedDepartments,
             createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
             applicationSubmittedAt: userData.applicationSubmittedAt?.toDate ?
               userData.applicationSubmittedAt?.toDate() : undefined,
-          } as ApplicationUser);
+          };
+
+          applicationsData.push(applicationUser);
         });
 
+        // Set all applications for statistics
         setApplications(applicationsData);
+
+        // For department leads, filter to their specific department
+        if (!isCoreTeam && departmentId) {
+          // departmentId is already in the correct Firestore format from departmentToFirestoreId mapping
+          const deptSpecificApps = applicationsData.filter(app =>
+            app.departments?.includes(departmentId)
+          );
+          setDepartmentApplications(deptSpecificApps);
+        } else {
+          setDepartmentApplications(applicationsData);
+        }
       } catch (error) {
-        console.error("Error fetching applications:", error);
+        console.error("❌ Error fetching applications:", error);
         toast.error("Unable to load applications", { id: "admin-apps-load-error" });
       } finally {
         setLoading(false);
@@ -233,11 +246,13 @@ export default function AdminApplicationsPage() {
     // Only apply filters after they've been initialized from URL
     if (!filtersInitialized) return;
 
-    let result = [...applications];
+    // Use department-specific applications for filtering (already filtered for dept leads)
+    const baseApplications = departmentApplications;
+    let result = [...baseApplications];
 
-    // Separate submitted and non-submitted applications
-    const submitted = applications.filter(app => app.applicationSubmitted === true);
-    const nonSubmitted = applications.filter(app => app.applicationSubmitted !== true);
+    // Separate submitted and non-submitted applications from the base result
+    const submitted = baseApplications.filter(app => app.applicationSubmitted === true);
+    const nonSubmitted = baseApplications.filter(app => app.applicationSubmitted !== true);
 
     setSubmittedApplications(submitted);
     setNonSubmittedApplications(nonSubmitted);
@@ -264,11 +279,11 @@ export default function AdminApplicationsPage() {
     // Apply status filter
     if (statusFilter) {
       if (!isCoreTeam && departmentId) {
-        // For department leads, filter by department-specific status using normalized ID
-        const normalizedDeptId = normalizeDepartmentId(departmentId);
+        // For department leads, filter by department-specific status
+        // departmentId is already in the correct format
         result = result.filter((app) => {
-          if (app.departmentStatuses && app.departmentStatuses[normalizedDeptId]) {
-            return app.departmentStatuses[normalizedDeptId].status === statusFilter;
+          if (app.departmentStatuses && app.departmentStatuses[departmentId]) {
+            return app.departmentStatuses[departmentId].status === statusFilter;
           }
           // Fallback to overall status if no department-specific status exists
           return app.status === statusFilter;
@@ -279,11 +294,11 @@ export default function AdminApplicationsPage() {
       }
     }
 
-    // Apply department filter with proper normalization
+    // Apply department filter for core team
     if (isCoreTeam && departmentFilter !== "all") {
-      const normalizedFilter = normalizeDepartmentId(departmentFilter);
+      // departmentFilter is already in the normalized format from the dropdown
       result = result.filter((app) =>
-        app.departments?.some(dept => normalizeDepartmentId(dept) === normalizedFilter)
+        app.departments?.includes(departmentFilter)
       );
     }
     
@@ -318,7 +333,7 @@ export default function AdminApplicationsPage() {
     setFilteredApplications(result);
     setTotalPages(Math.max(1, Math.ceil(result.length / itemsPerPage)));
     setCurrentPage(1); // Reset to first page when filters change
-  }, [applications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId, filtersInitialized]);
+  }, [departmentApplications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId, filtersInitialized]);
   
   // Get current page items
   const getCurrentItems = () => {
@@ -619,7 +634,7 @@ export default function AdminApplicationsPage() {
                       <SelectValue placeholder="All applications" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-gray-900 dark:border-gray-700">
-                      <SelectItem value="all">All Applications ({applications.length})</SelectItem>
+                      <SelectItem value="all">All Applications ({departmentApplications.length})</SelectItem>
                       <SelectItem value="submitted">Submitted ({submittedApplications.length})</SelectItem>
                       <SelectItem value="not-submitted">Not Submitted ({nonSubmittedApplications.length})</SelectItem>
                     </SelectContent>

@@ -107,9 +107,9 @@ export function ApplicationsTable({
   // Function to determine which status to display
   const getDisplayStatus = (application: ApplicationUser): ApplicationStatus => {
     if (departmentId && application.departmentStatuses) {
-      const normalizedDeptId = normalizeDepartmentId(departmentId);
-      if (application.departmentStatuses[normalizedDeptId]) {
-        return application.departmentStatuses[normalizedDeptId].status as ApplicationStatus;
+      // departmentId is already in the correct format
+      if (application.departmentStatuses[departmentId]) {
+        return application.departmentStatuses[departmentId].status as ApplicationStatus;
       }
     }
     // Always default to pending if no department status is found, instead of using overall status
@@ -123,8 +123,8 @@ export function ApplicationsTable({
     }
 
     return application.departments.filter(dept => {
-      const normalizedDept = normalizeDepartmentId(dept);
-      return application.departmentStatuses?.[normalizedDept]?.status === 'approved';
+      // dept is already normalized, so use it directly
+      return application.departmentStatuses?.[dept]?.status === 'approved';
     });
   };
 
