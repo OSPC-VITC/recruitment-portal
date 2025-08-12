@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  BarChart2, 
-  Users, 
-  FileText, 
-  Clock, 
-  ChevronRight, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Users,
+  FileText,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
   HelpCircle,
   Database,
   Settings
@@ -20,37 +19,24 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { departmentToFirestoreId, getDepartmentName, DepartmentId } from "@/lib/adminConfig";
+import { DEPARTMENT_IDS, normalizeDepartmentId } from "@/lib/departmentMapping";
 import { Loading } from "@/components/ui/loading";
+import { DepartmentStatistics } from "./applications/components/DepartmentStatistics";
 
-// Dashboard stats card component
-function StatCard({ 
-  title, 
-  value, 
-  description, 
-  icon, 
-  color 
-}: { 
-  title: string; 
-  value: string | number; 
-  description: string; 
-  icon: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <Card className="dark:border-gray-800">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 py-3">
-        <CardTitle className="text-xs md:text-sm font-medium dark:text-white">{title}</CardTitle>
-        <div className={`p-1.5 md:p-2 rounded-full ${color}`}>
-          {icon}
-        </div>
-      </CardHeader>
-      <CardContent className="px-4 py-2">
-        <div className="text-lg md:text-2xl font-bold dark:text-white">{value}</div>
-        <p className="text-xs text-muted-foreground dark:text-gray-400">{description}</p>
-      </CardContent>
-    </Card>
-  );
+// Application user type (matching the applications page)
+interface ApplicationUser {
+  id: string;
+  name?: string;
+  email?: string;
+  departments?: string[];
+  applicationSubmitted?: boolean;
+  status?: string;
+  departmentStatuses?: Record<string, { status: string; updatedAt?: any }>;
+  createdAt?: Date;
+  applicationSubmittedAt?: Date;
 }
+
+
 
 // Recent application card component 
 function RecentApplicationCard({ application, departmentId }: { application: any; departmentId?: string }) {
@@ -134,296 +120,143 @@ function RecentApplicationCard({ application, departmentId }: { application: any
   );
 }
 
-// Department stats card component
-function DepartmentStatsCard({
-  departmentId,
-  departmentName,
-  stats
-}: {
-  departmentId: string;
-  departmentName: string;
-  stats: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-  };
-}) {
-  return (
-    <Card className="mb-4 md:mb-6 dark:border-gray-800">
-      <CardHeader className="pb-2 border-b dark:border-gray-800 px-4 py-3">
-        <CardTitle className="text-base md:text-lg font-medium dark:text-white">{departmentName}</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-3 md:pt-4 px-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-center">
-          <div>
-            <Link href={`/dashboard/applications?department=${departmentId}`} className="block p-1.5 md:p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
-              <div className="text-base md:text-lg font-semibold dark:text-white">{stats.total}</div>
-              <div className="text-[10px] md:text-xs text-muted-foreground dark:text-gray-400">Applications</div>
-            </Link>
-          </div>
-          <div>
-            <Link href={`/dashboard/applications?department=${departmentId}&status=pending`} className="block p-1.5 md:p-2 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors">
-              <div className="text-base md:text-lg font-semibold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
-              <div className="text-[10px] md:text-xs text-muted-foreground dark:text-gray-400">Pending</div>
-            </Link>
-          </div>
-          <div>
-            <Link href={`/dashboard/applications?department=${departmentId}&status=approved`} className="block p-1.5 md:p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors">
-              <div className="text-base md:text-lg font-semibold text-green-600 dark:text-green-400">{stats.approved}</div>
-              <div className="text-[10px] md:text-xs text-muted-foreground dark:text-gray-400">Approved</div>
-            </Link>
-          </div>
-          <div>
-            <Link href={`/dashboard/applications?department=${departmentId}&status=rejected`} className="block p-1.5 md:p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-              <div className="text-base md:text-lg font-semibold text-red-600 dark:text-red-400">{stats.rejected}</div>
-              <div className="text-[10px] md:text-xs text-muted-foreground dark:text-gray-400">Rejected</div>
-            </Link>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+
 
 export default function AdminDashboardPage() {
   const { isCoreTeam, department } = useAdminAuth();
-  const [stats, setStats] = useState({
-    totalApplications: 0,
-    pendingApplications: 0,
-    approvedApplications: 0,
-    rejectedApplications: 0,
-    totalUsers: 0,
-    totalQuestions: 0,
-    submittedApplications: 0,
-    notSubmittedApplications: 0
-  });
-  
-  // New state for department-specific stats (for core team view)
-  const [departmentStats, setDepartmentStats] = useState<Record<string, {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-  }>>({});
-  
-  const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const router = useRouter();
+
+  // State for applications data
+  const [applications, setApplications] = useState<ApplicationUser[]>([]);
+  const [departmentApplications, setDepartmentApplications] = useState<ApplicationUser[]>([]);
+  const [recentApplications, setRecentApplications] = useState<ApplicationUser[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Get the department Firestore ID for filtering
   const departmentId = department ? departmentToFirestoreId[department] : null;
+
+  // Simple debug for critical departments (only in development)
+  if (process.env.NODE_ENV === 'development' && (department === 'open_source' || department === 'game_dev')) {
+    console.log(`Dashboard Department Access: ${department} → ${departmentId}`);
+  }
   
+  // Fetch applications data (similar to applications page)
   useEffect(() => {
-    async function fetchDashboardData() {
+    async function fetchApplicationsData() {
       try {
-        // Get user stats
+        setLoading(true);
+
+        // Always fetch ALL applications for accurate statistics
+        // We'll filter them in the UI, not at the database level
         const usersRef = collection(db, "users");
-        let usersQuery: any = usersRef;
-        
-        // For department leads, filter by department
-        if (!isCoreTeam && departmentId) {
-          usersQuery = query(
-            usersRef,
-            where("departments", "array-contains", departmentId)
-          );
-        }
-        
-        const usersSnap = await getDocs(usersQuery);
-        const totalUsers = usersSnap.size;
+        const usersSnapshot = await getDocs(usersRef);
 
-        // Calculate submission stats
-        let submittedCount = 0;
-        let notSubmittedCount = 0;
+        const applicationsData: ApplicationUser[] = [];
 
-        usersSnap.docs.forEach(doc => {
+        // Process user data
+        usersSnapshot.forEach((doc) => {
           const userData = doc.data();
-          if (userData.applicationSubmitted === true) {
-            submittedCount++;
-          } else {
-            notSubmittedCount++;
+
+          // Only include users who have departments (i.e., have applied)
+          if (!userData.departments || userData.departments.length === 0) {
+            return; // Skip users who haven't applied to any department
           }
+
+          // Normalize department IDs in the application data
+          const originalDepartments = userData.departments || [];
+          const normalizedDepartments = originalDepartments.map((dept: string) =>
+            normalizeDepartmentId(dept)
+          );
+
+          const applicationUser: ApplicationUser = {
+            id: doc.id,
+            ...userData,
+            departments: normalizedDepartments,
+            createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
+            applicationSubmittedAt: userData.applicationSubmittedAt?.toDate ?
+              userData.applicationSubmittedAt?.toDate() : undefined,
+          };
+
+          applicationsData.push(applicationUser);
         });
 
-        // Get application stats
-        let applicationsRef = collection(db, "applications");
-        const applicationsSnap = await getDocs(applicationsRef);
-        const totalApplications = applicationsSnap.size;
-        
-        // Get questions stats
-        const formFieldsRef = collection(db, "formFields");
-        let questionsQuery: any = formFieldsRef;
-        
-        // For department leads, filter by department
-        if (!isCoreTeam && departmentId) {
-          questionsQuery = query(
-            formFieldsRef,
-            where("departmentId", "==", departmentId)
-          );
-        }
-        
-        const questionsSnap = await getDocs(questionsQuery);
-        const totalQuestions = questionsSnap.size;
-        
-        // Always use department-specific statuses for counts
-        if (!isCoreTeam && departmentId) {
-          // For department leads, we need to count based on department-specific statuses
-          // Initialize counters
-          let pendingCount = 0;
-          let approvedCount = 0;
-          let rejectedCount = 0;
-          
-          // Count users with the specific department status
-          for (const userDoc of usersSnap.docs) {
-            const userData = userDoc.data() as any;
-            // Check if the user has department-specific status
-            if (userData.departmentStatuses && userData.departmentStatuses[departmentId]) {
-              const deptStatus = userData.departmentStatuses[departmentId].status;
-              if (deptStatus === 'pending') pendingCount++;
-              else if (deptStatus === 'approved') approvedCount++;
-              else if (deptStatus === 'rejected') rejectedCount++;
-            } else {
-              // If no department-specific status, count as pending
-              pendingCount++;
-            }
+        // Set all applications for statistics
+        setApplications(applicationsData);
+
+        // For department leads, filter to their specific department
+        if (!isCoreTeam && department) {
+          // Create a robust department filtering function
+          const filterByDepartment = (apps: ApplicationUser[], deptId: string): ApplicationUser[] => {
+            return apps.filter(app => {
+              if (!app.departments || app.departments.length === 0) return false;
+
+              // Direct match
+              if (app.departments.includes(deptId)) return true;
+
+              // Normalized match
+              const normalizedDeptId = normalizeDepartmentId(deptId);
+              return app.departments.some(dept => normalizeDepartmentId(dept) === normalizedDeptId);
+            });
+          };
+
+          let deptSpecificApps: ApplicationUser[] = [];
+
+          // Try with mapped department ID first
+          if (departmentId) {
+            deptSpecificApps = filterByDepartment(applicationsData, departmentId);
           }
-          
-          // Update state with the counts
-          setStats({
-            totalApplications: totalUsers,
-            pendingApplications: pendingCount,
-            approvedApplications: approvedCount,
-            rejectedApplications: rejectedCount,
-            totalUsers,
-            totalQuestions,
-            submittedApplications: submittedCount,
-            notSubmittedApplications: notSubmittedCount
-          });
+
+          // If no results and we have a raw department, try that
+          if (deptSpecificApps.length === 0 && department) {
+            deptSpecificApps = filterByDepartment(applicationsData, department);
+          }
+
+          // Simple debug for critical departments
+          if (process.env.NODE_ENV === 'development' && (department === 'open_source' || department === 'game_dev')) {
+            console.log(`Dashboard filtered ${deptSpecificApps.length} applications for ${department} from ${applicationsData.length} total`);
+          }
+
+          setDepartmentApplications(deptSpecificApps);
         } else {
-          // For core team, each user application is counted as one, not per department
-          // First, create department stats dictionary for all departments
-          const deptStats: Record<string, {
-            total: number;
-            pending: number;
-            approved: number;
-            rejected: number;
-          }> = {};
-          
-          // For each department, prepare a stats object
-          for (const [deptId, firestoreId] of Object.entries(departmentToFirestoreId)) {
-            deptStats[firestoreId] = {
-              total: 0,
-              pending: 0,
-              approved: 0,
-              rejected: 0
-            };
-          }
-          
-          // Process all users and count them per department
-          let totalPending = 0;
-          let totalApproved = 0;
-          let totalRejected = 0;
-          let usersWithAllDeptsReviewed = 0;
-          
-          for (const userDoc of usersSnap.docs) {
-            const userData = userDoc.data() as any;
-            const userDepartments = userData.departments || [];
-            let userHasPendingDept = false;
-            let userHasApprovedDept = false;
-            
-            // Skip users with no departments
-            if (userDepartments.length === 0) continue;
-            
-            // Count this user for each of their departments
-            for (const userDept of userDepartments) {
-              if (deptStats[userDept]) {
-                deptStats[userDept].total += 1;
-                
-                // Check if the user has department-specific status
-                if (userData.departmentStatuses && userData.departmentStatuses[userDept]) {
-                  const deptStatus = userData.departmentStatuses[userDept].status;
-                  if (deptStatus === 'pending') {
-                    deptStats[userDept].pending += 1;
-                    userHasPendingDept = true;
-                  } else if (deptStatus === 'approved') {
-                    deptStats[userDept].approved += 1;
-                    userHasApprovedDept = true;
-                  } else if (deptStatus === 'rejected') {
-                    deptStats[userDept].rejected += 1;
-                  }
-                } else {
-                  // If no department-specific status, count as pending
-                  deptStats[userDept].pending += 1;
-                  userHasPendingDept = true;
-                }
-              }
-            }
-            
-            // Count user as pending if they have any pending department
-            if (userHasPendingDept) {
-              totalPending += 1;
-            } 
-            // Count user as approved if they have at least one approved department and no pending departments
-            else if (userHasApprovedDept) {
-              totalApproved += 1;
-              usersWithAllDeptsReviewed += 1;
-            }
-            // Count user as rejected if all departments are reviewed and none are approved
-            else {
-              totalRejected += 1;
-              usersWithAllDeptsReviewed += 1;
-            }
-          }
-          
-          setDepartmentStats(deptStats);
-          
-          // Update overall stats based on user counts, not department aggregates
-          setStats({
-            totalApplications: totalUsers,
-            pendingApplications: totalPending,
-            approvedApplications: totalApproved,
-            rejectedApplications: totalRejected,
-            totalUsers,
-            totalQuestions,
-            submittedApplications: submittedCount,
-            notSubmittedApplications: notSubmittedCount
-          });
+          setDepartmentApplications(applicationsData);
         }
-        
-        // Get recent applications - filtered by department for department leads
-        let recentQuery;
-        
-        if (!isCoreTeam && departmentId) {
-          recentQuery = query(
-            collection(db, "users"),
-            where("departments", "array-contains", departmentId),
-            orderBy("createdAt", "desc"),
-            limit(5)
-          );
-        } else {
-          recentQuery = query(
-            collection(db, "users"),
-            orderBy("createdAt", "desc"),
-            limit(5)
-          );
-        }
-        
-        const recentSnap = await getDocs(recentQuery);
-        
-        const recentApps = recentSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
+
+        // Get recent applications - use the same data but limit to 5 most recent
+        const recentApps = applicationsData
+          .sort((a, b) => {
+            const dateA = a.applicationSubmittedAt || a.createdAt || new Date(0);
+            const dateB = b.applicationSubmittedAt || b.createdAt || new Date(0);
+            return dateB.getTime() - dateA.getTime();
+          })
+          .slice(0, 5);
+
         setRecentApplications(recentApps);
+        
+
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("Error fetching applications data:", error);
       } finally {
         setLoading(false);
       }
     }
-    
-    fetchDashboardData();
-  }, [isCoreTeam, departmentId]);
+
+    fetchApplicationsData();
+  }, [isCoreTeam, department, departmentId]);
+
+  // Navigation handlers for statistics filtering
+  const handleStatsDepartmentFilter = useCallback((departmentId: string) => {
+    router.push(`/dashboard/applications?department=${departmentId}`);
+  }, [router]);
+
+  const handleStatsStatusFilter = useCallback((status: string | null) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    router.push(`/dashboard/applications?${params.toString()}`);
+  }, [router]);
+
+  const handleStatsSubmissionFilter = useCallback((submission: string) => {
+    router.push(`/dashboard/applications?submitted=${submission}`);
+  }, [router]);
   
   if (loading) {
     return (
@@ -432,178 +265,114 @@ export default function AdminDashboardPage() {
       </div>
     );
   }
-  
+
   return (
-    <div>
-      {/* Dashboard stats */}
-      <div className="mb-6">
-        <h2 className="text-base md:text-xl font-semibold mb-3 dark:text-white">Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <StatCard
-            title="Total Applications"
-            value={stats.totalApplications}
-            description="Applications submitted"
-            icon={<FileText className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-600 dark:text-blue-400" />}
-            color="bg-blue-100 dark:bg-blue-900/30"
-          />
-          <StatCard
-            title="Pending Applications"
-            value={stats.pendingApplications}
-            description="Waiting for review"
-            icon={<Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-yellow-600 dark:text-yellow-400" />}
-            color="bg-yellow-100 dark:bg-yellow-900/30"
-          />
-          <StatCard
-            title="Approved Applications"
-            value={stats.approvedApplications}
-            description="Selected candidates"
-            icon={<CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-600 dark:text-green-400" />}
-            color="bg-green-100 dark:bg-green-900/30"
-          />
-          <StatCard
-            title="Rejected Applications"
-            value={stats.rejectedApplications}
-            description="Not selected"
-            icon={<XCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-red-600 dark:text-red-400" />}
-            color="bg-red-100 dark:bg-red-900/30"
-          />
+    <div className="p-6 space-y-6">
+      {/* Dashboard Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          Overview of applications and statistics
+          {!isCoreTeam && department && ` for ${getDepartmentName(department)}`}
+        </p>
+      </div>
+
+      {/* Department Statistics - Main Feature */}
+      <DepartmentStatistics
+        applications={isCoreTeam ? applications : departmentApplications}
+        isCoreTeam={isCoreTeam}
+        currentDepartmentId={departmentId}
+        onFilterByDepartment={handleStatsDepartmentFilter}
+        onFilterByStatus={handleStatsStatusFilter}
+        onFilterBySubmission={handleStatsSubmissionFilter}
+      />
+
+      {/* Recent Applications and Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Applications */}
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold dark:text-white">Recent Applications</h2>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/applications">
+                View All
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+
+          <Card className="dark:border-gray-800">
+            {recentApplications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <FileText className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No applications yet</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
+                  Applications will appear here once students start applying.
+                </p>
+              </div>
+            ) : (
+              <div>
+                {recentApplications.map((application) => (
+                  <RecentApplicationCard
+                    key={application.id}
+                    application={application}
+                    departmentId={departmentId || undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
 
-        {/* Submission Status Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mt-4">
-          <Link href="/dashboard/applications?submitted=submitted" className="block">
-            <StatCard
-              title="Submitted Applications"
-              value={stats.submittedApplications}
-              description="Completed submissions"
-              icon={<CheckCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-600 dark:text-green-400" />}
-              color="bg-green-100 dark:bg-green-900/30"
-            />
-          </Link>
-          <Link href="/dashboard/applications?submitted=not-submitted" className="block">
-            <StatCard
-              title="Not Submitted"
-              value={stats.notSubmittedApplications}
-              description="Incomplete applications"
-              icon={<Clock className="h-3.5 w-3.5 md:h-4 md:w-4 text-orange-600 dark:text-orange-400" />}
-              color="bg-orange-100 dark:bg-orange-900/30"
-            />
-          </Link>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-6">
-        {/* Left Column - Recent Applications */}
-        <div className="col-span-1 md:col-span-2 order-2 md:order-1">
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base md:text-xl font-semibold dark:text-white">Recent Applications</h2>
-              <Button variant="outline" size="sm" asChild className="text-xs md:text-sm h-8 px-2 md:px-3 bg-white dark:bg-zinc-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-700">
+        {/* Quick Actions */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4 dark:text-white">Quick Actions</h2>
+          <Card className="dark:border-gray-800">
+            <CardContent className="p-4 space-y-3">
+              <Button variant="outline" asChild className="w-full justify-between">
                 <Link href="/dashboard/applications">
-                  View All
-                  <ChevronRight className="ml-1 h-3 w-3 md:h-4 md:w-4" />
+                  <div className="flex items-center">
+                    <FileText className="h-4 w-4 mr-2" />
+                    <span>Manage Applications</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4" />
                 </Link>
               </Button>
-            </div>
-            
-            <Card className="dark:border-gray-800">
-              {recentApplications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 px-4 text-center h-40">
-                  <FileText className="h-8 w-8 text-gray-400 dark:text-gray-600 mb-3" />
-                  <h3 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">No applications yet</h3>
-                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 max-w-md">
-                    There are no applications submitted yet. They will appear here once students start applying.
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  {recentApplications.map((application: any) => (
-                    <RecentApplicationCard 
-                      key={application.id} 
-                      application={application} 
-                      departmentId={departmentId || undefined} 
-                    />
-                  ))}
-                  {recentApplications.length > 0 && (
-                    <div className="flex justify-center p-3">
-                      <Button variant="ghost" size="sm" asChild className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                        <Link href="/dashboard/applications">View All Applications</Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
+              <Button variant="outline" asChild className="w-full justify-between">
+                <Link href="/dashboard/questions">
+                  <div className="flex items-center">
+                    <Database className="h-4 w-4 mr-2" />
+                    <span>Manage Questions</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              {isCoreTeam && (
+                <>
+                  <Button variant="outline" asChild className="w-full justify-between">
+                    <Link href="/dashboard/users">
+                      <div className="flex items-center">
+                        <Users className="h-4 w-4 mr-2" />
+                        <span>Manage Users</span>
+                      </div>
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" asChild className="w-full justify-between">
+                    <Link href="/dashboard/settings">
+                      <div className="flex items-center">
+                        <Settings className="h-4 w-4 mr-2" />
+                        <span>Portal Settings</span>
+                      </div>
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </>
               )}
-            </Card>
-          </div>
-        </div>
-        
-        {/* Right Column - Department Stats or Quick Links */}
-        <div className="col-span-1 order-1 md:order-2 mb-4 md:mb-0">
-          {/* Department stats section (core team only) */}
-          {isCoreTeam && Object.keys(departmentStats).length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-base md:text-xl font-semibold mb-3 dark:text-white">Department Stats</h2>
-              {Object.entries(departmentStats).map(([deptId, stats]) => (
-                <DepartmentStatsCard
-                  key={deptId}
-                  departmentId={deptId}
-                  departmentName={getDepartmentName(deptId as DepartmentId)}
-                  stats={stats}
-                />
-              ))}
-            </div>
-          )}
-          
-          {/* Quick Links */}
-          <div>
-            <h2 className="text-base md:text-xl font-semibold mb-3 dark:text-white">Quick Actions</h2>
-            <Card className="dark:border-gray-800">
-              <CardContent className="px-3 py-4 space-y-2 md:space-y-3">
-                <Button variant="outline" asChild className="w-full text-left flex items-center justify-between text-xs md:text-sm h-9 md:h-10">
-                  <Link href="/dashboard/applications">
-                    <div className="flex items-center">
-                      <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-                      <span>View All Applications</span>
-                    </div>
-                    <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild className="w-full text-left flex items-center justify-between text-xs md:text-sm h-9 md:h-10">
-                  <Link href="/dashboard/questions">
-                    <div className="flex items-center">
-                      <Database className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-                      <span>Manage Questions</span>
-                    </div>
-                    <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-                  </Link>
-                </Button>
-                {isCoreTeam && (
-                  <>
-                    <Button variant="outline" asChild className="w-full text-left flex items-center justify-between text-xs md:text-sm h-9 md:h-10">
-                      <Link href="/dashboard/users">
-                        <div className="flex items-center">
-                          <Users className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-                          <span>Manage Users</span>
-                        </div>
-                        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="outline" asChild className="w-full text-left flex items-center justify-between text-xs md:text-sm h-9 md:h-10">
-                      <Link href="/dashboard/settings">
-                        <div className="flex items-center">
-                          <Settings className="h-3.5 w-3.5 md:h-4 md:w-4 mr-2" />
-                          <span>Portal Settings</span>
-                        </div>
-                        <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
   );
-} 
+}

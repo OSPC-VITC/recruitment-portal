@@ -36,7 +36,7 @@ import { departmentToFirestoreId, getDepartmentName, DepartmentId } from "@/lib/
 import { DEPARTMENT_IDS, normalizeDepartmentId, getAllDepartmentIds } from "@/lib/departmentMapping";
 import { Label } from "@/components/ui/label";
 import { ApplicationsTable } from "./components/ApplicationsTable";
-import { DepartmentStatistics } from "./components/DepartmentStatistics";
+
 import { Loading } from "@/components/ui/loading";
 
 // Status badge component
@@ -555,21 +555,7 @@ export default function AdminApplicationsPage() {
     updateURLParams({ submitted: value });
   }, [updateURLParams]);
 
-  // Statistics dashboard filter handlers
-  const handleStatsDepartmentFilter = useCallback((departmentId: string) => {
-    setDepartmentFilter(departmentId);
-    updateURLParams({ department: departmentId });
-  }, [updateURLParams]);
 
-  const handleStatsStatusFilter = useCallback((status: string | null) => {
-    setStatusFilter(status);
-    updateURLParams({ status: status });
-  }, [updateURLParams]);
-
-  const handleStatsSubmissionFilter = useCallback((submission: string) => {
-    setSubmissionFilter(submission);
-    updateURLParams({ submitted: submission });
-  }, [updateURLParams]);
 
   // Helper function to determine if an application is submitted
   const isApplicationSubmitted = (app: ApplicationUser): boolean => {
@@ -609,22 +595,16 @@ export default function AdminApplicationsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Department Statistics Dashboard */}
-      <DepartmentStatistics
-        applications={isCoreTeam ? applications : departmentApplications}
-        isCoreTeam={isCoreTeam}
-        currentDepartmentId={departmentId}
-        onFilterByDepartment={handleStatsDepartmentFilter}
-        onFilterByStatus={handleStatsStatusFilter}
-        onFilterBySubmission={handleStatsSubmissionFilter}
-      />
-
-      {/* Debug info for department leads (development only) */}
-      {process.env.NODE_ENV === 'development' && !isCoreTeam && department && (
-        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
-          Debug: Showing statistics for {departmentApplications.length} applications (Department: {department} → {departmentId})
+      {/* Applications count display */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Applications</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Showing {filteredApplications.length} of {departmentApplications.length} applications
+            {!isCoreTeam && department && ` for ${getDepartmentDisplayName(departmentId || department)}`}
+          </p>
         </div>
-      )}
+      </div>
 
       <Card className="mb-6 dark:border-gray-800">
         <CardHeader className="pb-3">
