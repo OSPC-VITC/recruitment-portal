@@ -122,7 +122,25 @@ export default function ApplicationDetail() {
   const id = params.id as string;
   const { isCoreTeam, department } = useAdminAuth();
   const departmentId = department ? departmentToFirestoreId[department] : null;
-  
+
+  // Debug department mapping at component level (development only)
+  if (process.env.NODE_ENV === 'development' && !isCoreTeam) {
+    console.log('🔍 Component Level Department Debug:', {
+      applicationId: id,
+      isCoreTeam,
+      rawDepartment: department,
+      mappedDepartmentId: departmentId,
+      mappingExists: department ? !!departmentToFirestoreId[department] : false,
+      allMappings: departmentToFirestoreId,
+      normalizationTest: department ? {
+        original: department,
+        normalized: normalizeDepartmentId(department),
+        mapped: departmentId,
+        mappedNormalized: departmentId ? normalizeDepartmentId(departmentId) : null
+      } : null
+    });
+  }
+
   const [userData, setUserData] = useState<ExtendedUserData | null>(null);
   const [applicationData, setApplicationData] = useState<ApplicationData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +162,23 @@ export default function ApplicationDetail() {
       try {
         // Get user data
         const userDoc = await getDoc(doc(db, "users", id));
+
+        // Debug application existence
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Application Existence Check:', {
+            applicationId: id,
+            documentExists: userDoc.exists(),
+            documentData: userDoc.exists() ? userDoc.data() : null
+          });
+        }
+
         if (!userDoc.exists()) {
+          console.error('❌ Application not found in database:', {
+            applicationId: id,
+            isCoreTeam,
+            adminDepartment: department,
+            mappedDepartmentId: departmentId
+          });
           toast.error("Application not found", { id: "admin-app-not-found" });
           router.push("/dashboard/applications");
           return;
@@ -157,7 +191,13 @@ export default function ApplicationDetail() {
             isCoreTeam,
             adminDepartment: department,
             mappedDepartmentId: departmentId,
-            userDepartments: userDoc.data()?.departments
+            userDepartments: userDoc.data()?.departments,
+            userDepartmentsRaw: userDoc.data()?.departments,
+            departmentMapping: {
+              'open_source': departmentToFirestoreId['open_source'],
+              'game_dev': departmentToFirestoreId['game_dev'],
+              'ai_ml': departmentToFirestoreId['ai_ml']
+            }
           });
         }
         
@@ -169,26 +209,89 @@ export default function ApplicationDetail() {
         // Check if department lead has access to this application
         if (!isCoreTeam && departmentId) {
           const userDepartments = userData.departments || [];
+
+          // Detailed debugging for access control
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 Detailed Access Control Debug:', {
+              step: 'Starting access check',
+              isCoreTeam,
+              adminDepartment: department,
+              departmentId,
+              userDepartments,
+              userDepartmentsLength: userDepartments.length,
+              userDepartmentsType: typeof userDepartments,
+              isArray: Array.isArray(userDepartments)
+            });
+          }
+
           const hasAccess = userDepartments.some(userDept => {
-            // Use normalization to compare department IDs
-            const normalizedUserDept = normalizeDepartmentId(userDept);
-            const normalizedAdminDept = normalizeDepartmentId(departmentId);
-            return normalizedUserDept === normalizedAdminDept;
+            // Clean and normalize both department IDs for comparison
+            const cleanUserDept = (userDept || '').toString().trim();
+            const cleanAdminDept = (departmentId || '').toString().trim();
+
+            const normalizedUserDept = normalizeDepartmentId(cleanUserDept);
+            const normalizedAdminDept = normalizeDepartmentId(cleanAdminDept);
+
+            // Try multiple comparison strategies
+            const directMatch = cleanUserDept === cleanAdminDept;
+            const normalizedMatch = normalizedUserDept === normalizedAdminDept;
+            const caseInsensitiveMatch = cleanUserDept.toLowerCase() === cleanAdminDept.toLowerCase();
+
+            const matches = directMatch || normalizedMatch || caseInsensitiveMatch;
+
+            // Debug each comparison
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔍 Department Comparison:', {
+                userDept: cleanUserDept,
+                normalizedUserDept,
+                departmentId: cleanAdminDept,
+                normalizedAdminDept,
+                directMatch,
+                normalizedMatch,
+                caseInsensitiveMatch,
+                finalMatches: matches
+              });
+            }
+
+            return matches;
           });
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 Access Control Result:', {
+              hasAccess,
+              userDepartments,
+              normalizedUserDepts: userDepartments.map(d => normalizeDepartmentId(d)),
+              adminDepartmentId: departmentId,
+              normalizedAdminDept: normalizeDepartmentId(departmentId)
+            });
+          }
 
           if (!hasAccess) {
             // Debug logging for access denial (development only)
             if (process.env.NODE_ENV === 'development') {
-              console.log('🚫 Access Denied Debug:', {
+              console.error('🚫 ACCESS DENIED - Application Detail:', {
+                applicationId: id,
+                adminDepartment: department,
                 adminDepartmentId: departmentId,
                 normalizedAdminDept: normalizeDepartmentId(departmentId),
                 userDepartments,
-                normalizedUserDepts: userDepartments.map(d => normalizeDepartmentId(d))
+                normalizedUserDepts: userDepartments.map(d => normalizeDepartmentId(d)),
+                reason: 'No matching department found'
               });
             }
             setUnauthorized(true);
             setLoading(false);
             return;
+          } else {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ ACCESS GRANTED - Application Detail:', {
+                applicationId: id,
+                adminDepartment: department,
+                matchingDepartments: userDepartments.filter(userDept =>
+                  normalizeDepartmentId(userDept) === normalizeDepartmentId(departmentId)
+                )
+              });
+            }
           }
         }
         
