@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   HelpCircle,
+  Clock,
   Database,
   Settings
 } from "lucide-react";
