@@ -43,6 +43,7 @@ interface DepartmentStats {
 
 interface DepartmentStatisticsProps {
   applications: ApplicationUser[];
+  allUsers?: ApplicationUser[];
   isCoreTeam: boolean;
   currentDepartmentId?: string | null;
   onFilterByDepartment: (departmentId: string) => void;
@@ -52,6 +53,7 @@ interface DepartmentStatisticsProps {
 
 export function DepartmentStatistics({
   applications,
+  allUsers,
   isCoreTeam,
   currentDepartmentId,
   onFilterByDepartment,
@@ -157,8 +159,8 @@ export function DepartmentStatistics({
 
   const departmentStats = calculateDepartmentStats();
 
-  // Calculate overall statistics by counting each application only once
-  // (not summing department stats which would double-count multi-department applications)
+  // Calculate overall statistics including all registered users
+  // Use allUsers for overall stats to include users who haven't applied to any departments
   const calculateOverallStats = () => {
     const overallStats = {
       totalApplications: 0,
@@ -169,23 +171,24 @@ export function DepartmentStatistics({
       rejectedApplications: 0,
     };
 
-    // Count each application only once, regardless of how many departments they applied to
-    applications.forEach(app => {
-      if (!app.departments || app.departments.length === 0) {
-        return;
-      }
+    // Use allUsers if available (includes all registered users), otherwise fall back to applications
+    const usersToCount = allUsers || applications;
 
+    // Count each user only once, including those who haven't applied to any departments
+    usersToCount.forEach(user => {
       overallStats.totalApplications++;
 
       // Check submission status - explicit check for true value only
-      if (app.applicationSubmitted === true) {
+      if (user.applicationSubmitted === true) {
         overallStats.submittedApplications++;
       } else {
+        // Include users who haven't applied to any departments in "not submitted"
         overallStats.nonSubmittedApplications++;
       }
 
       // For overall status, use the general application status
-      const status = app.status || 'pending';
+      // Users without departments are considered pending
+      const status = user.status || 'pending';
       switch (status) {
         case 'approved':
           overallStats.approvedApplications++;
@@ -208,8 +211,11 @@ export function DepartmentStatistics({
   if (process.env.NODE_ENV === 'development') {
     const submissionMathCheck = totalStats.submittedApplications + totalStats.nonSubmittedApplications === totalStats.totalApplications;
     const statusMathCheck = totalStats.pendingApplications + totalStats.approvedApplications + totalStats.rejectedApplications === totalStats.totalApplications;
+    const usersToCount = allUsers || applications;
 
     console.log('📊 Overall Statistics Validation:', {
+      dataSource: allUsers ? 'allUsers (includes non-applicants)' : 'applications (applicants only)',
+      totalUsers: usersToCount.length,
       totalApplications: totalStats.totalApplications,
       submittedApplications: totalStats.submittedApplications,
       nonSubmittedApplications: totalStats.nonSubmittedApplications,
@@ -220,6 +226,10 @@ export function DepartmentStatistics({
         notSubmitted: totalStats.nonSubmittedApplications,
         sum: totalStats.submittedApplications + totalStats.nonSubmittedApplications,
         total: totalStats.totalApplications
+      },
+      userBreakdown: {
+        withDepartments: usersToCount.filter(u => u.departments && u.departments.length > 0).length,
+        withoutDepartments: usersToCount.filter(u => !u.departments || u.departments.length === 0).length
       }
     });
 
@@ -236,10 +246,15 @@ export function DepartmentStatistics({
       {/* Development validation indicator */}
       {process.env.NODE_ENV === 'development' && isCoreTeam && (
         <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded border">
-          <strong>Debug:</strong> Overall Statistics -
+          <strong>Debug:</strong> Overall Statistics ({allUsers ? 'All Users' : 'Applicants Only'}) -
           Submitted: {totalStats.submittedApplications},
           Not Submitted: {totalStats.nonSubmittedApplications},
           Total: {totalStats.totalApplications}
+          {allUsers && (
+            <span className="text-blue-600 ml-2">
+              (Includes {(allUsers || []).filter(u => !u.departments || u.departments.length === 0).length} non-applicants)
+            </span>
+          )}
           {totalStats.submittedApplications + totalStats.nonSubmittedApplications === totalStats.totalApplications ?
             <span className="text-green-600 ml-2">✓ Math Check Passed</span> :
             <span className="text-red-600 ml-2">✗ Math Check Failed</span>

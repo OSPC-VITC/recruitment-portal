@@ -128,6 +128,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
 
   // State for applications data
+  const [allUsers, setAllUsers] = useState<ApplicationUser[]>([]);
   const [applications, setApplications] = useState<ApplicationUser[]>([]);
   const [departmentApplications, setDepartmentApplications] = useState<ApplicationUser[]>([]);
   const [recentApplications, setRecentApplications] = useState<ApplicationUser[]>([]);
@@ -152,16 +153,12 @@ export default function AdminDashboardPage() {
         const usersRef = collection(db, "users");
         const usersSnapshot = await getDocs(usersRef);
 
+        const allUsersData: ApplicationUser[] = [];
         const applicationsData: ApplicationUser[] = [];
 
-        // Process user data
+        // Process user data - include ALL users for overall statistics
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
-
-          // Only include users who have departments (i.e., have applied)
-          if (!userData.departments || userData.departments.length === 0) {
-            return; // Skip users who haven't applied to any department
-          }
 
           // Normalize department IDs in the application data
           const originalDepartments = userData.departments || [];
@@ -178,10 +175,17 @@ export default function AdminDashboardPage() {
               userData.applicationSubmittedAt?.toDate() : undefined,
           };
 
-          applicationsData.push(applicationUser);
+          // Add to all users dataset (for overall statistics)
+          allUsersData.push(applicationUser);
+
+          // Add to applications dataset only if user has applied to departments
+          if (userData.departments && userData.departments.length > 0) {
+            applicationsData.push(applicationUser);
+          }
         });
 
-        // Set all applications for statistics
+        // Set all users and applications for statistics
+        setAllUsers(allUsersData);
         setApplications(applicationsData);
 
         // For department leads, filter to their specific department
@@ -281,6 +285,7 @@ export default function AdminDashboardPage() {
       {/* Department Statistics - Main Feature */}
       <DepartmentStatistics
         applications={isCoreTeam ? applications : departmentApplications}
+        allUsers={isCoreTeam ? allUsers : undefined}
         isCoreTeam={isCoreTeam}
         currentDepartmentId={departmentId}
         onFilterByDepartment={handleStatsDepartmentFilter}

@@ -149,6 +149,17 @@ export default function ApplicationDetail() {
           router.push("/dashboard/applications");
           return;
         }
+
+        // Debug logging for department access (development only)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Application Detail Access Debug:', {
+            applicationId: id,
+            isCoreTeam,
+            adminDepartment: department,
+            mappedDepartmentId: departmentId,
+            userDepartments: userDoc.data()?.departments
+          });
+        }
         
         const userData: ExtendedUserData = {
           id: userDoc.id,
@@ -158,7 +169,23 @@ export default function ApplicationDetail() {
         // Check if department lead has access to this application
         if (!isCoreTeam && departmentId) {
           const userDepartments = userData.departments || [];
-          if (!userDepartments.includes(departmentId)) {
+          const hasAccess = userDepartments.some(userDept => {
+            // Use normalization to compare department IDs
+            const normalizedUserDept = normalizeDepartmentId(userDept);
+            const normalizedAdminDept = normalizeDepartmentId(departmentId);
+            return normalizedUserDept === normalizedAdminDept;
+          });
+
+          if (!hasAccess) {
+            // Debug logging for access denial (development only)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🚫 Access Denied Debug:', {
+                adminDepartmentId: departmentId,
+                normalizedAdminDept: normalizeDepartmentId(departmentId),
+                userDepartments,
+                normalizedUserDepts: userDepartments.map(d => normalizeDepartmentId(d))
+              });
+            }
             setUnauthorized(true);
             setLoading(false);
             return;
@@ -226,9 +253,14 @@ export default function ApplicationDetail() {
         
         // Fetch form fields for each department
         if (userData.departments && userData.departments.length > 0) {
-          // Filter departments based on user role
-          const departmentsToFetch = !isCoreTeam && departmentId 
-            ? userData.departments.filter(deptId => deptId === departmentId)
+          // Filter departments based on user role with proper normalization
+          const departmentsToFetch = !isCoreTeam && departmentId
+            ? userData.departments.filter(deptId => {
+                // Use normalization to compare department IDs
+                const normalizedUserDept = normalizeDepartmentId(deptId);
+                const normalizedAdminDept = normalizeDepartmentId(departmentId);
+                return normalizedUserDept === normalizedAdminDept;
+              })
             : userData.departments;
           
           const departmentFieldsPromises = departmentsToFetch.map(async (deptId: string) => {
@@ -405,9 +437,14 @@ export default function ApplicationDetail() {
       return <p className="text-gray-500">No departments selected</p>;
     }
 
-    // Filter departments based on user role
-    const visibleDepartments = !isCoreTeam && departmentId 
-      ? userData.departments.filter(deptId => deptId === departmentId)
+    // Filter departments based on user role with proper normalization
+    const visibleDepartments = !isCoreTeam && departmentId
+      ? userData.departments.filter(deptId => {
+          // Use normalization to compare department IDs
+          const normalizedUserDept = normalizeDepartmentId(deptId);
+          const normalizedAdminDept = normalizeDepartmentId(departmentId);
+          return normalizedUserDept === normalizedAdminDept;
+        })
       : userData.departments;
 
     return (
