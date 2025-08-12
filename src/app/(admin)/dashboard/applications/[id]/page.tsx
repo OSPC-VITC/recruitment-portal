@@ -224,37 +224,51 @@ export default function ApplicationDetail() {
             });
           }
 
-          const hasAccess = userDepartments.some(userDept => {
-            // Clean and normalize both department IDs for comparison
-            const cleanUserDept = (userDept || '').toString().trim();
-            const cleanAdminDept = (departmentId || '').toString().trim();
+          let hasAccess = false;
 
-            const normalizedUserDept = normalizeDepartmentId(cleanUserDept);
-            const normalizedAdminDept = normalizeDepartmentId(cleanAdminDept);
+          // Try to determine access with multiple fallback strategies
+          try {
+            hasAccess = userDepartments.some(userDept => {
+              // Clean and normalize both department IDs for comparison
+              const cleanUserDept = (userDept || '').toString().trim();
+              const cleanAdminDept = (departmentId || '').toString().trim();
 
-            // Try multiple comparison strategies
-            const directMatch = cleanUserDept === cleanAdminDept;
-            const normalizedMatch = normalizedUserDept === normalizedAdminDept;
-            const caseInsensitiveMatch = cleanUserDept.toLowerCase() === cleanAdminDept.toLowerCase();
+              if (!cleanUserDept || !cleanAdminDept) return false;
 
-            const matches = directMatch || normalizedMatch || caseInsensitiveMatch;
+              const normalizedUserDept = normalizeDepartmentId(cleanUserDept);
+              const normalizedAdminDept = normalizeDepartmentId(cleanAdminDept);
 
-            // Debug each comparison
+              // Try multiple comparison strategies
+              const directMatch = cleanUserDept === cleanAdminDept;
+              const normalizedMatch = normalizedUserDept === normalizedAdminDept;
+              const caseInsensitiveMatch = cleanUserDept.toLowerCase() === cleanAdminDept.toLowerCase();
+
+              const matches = directMatch || normalizedMatch || caseInsensitiveMatch;
+
+              // Debug each comparison
+              if (process.env.NODE_ENV === 'development') {
+                console.log('🔍 Department Comparison:', {
+                  userDept: cleanUserDept,
+                  normalizedUserDept,
+                  departmentId: cleanAdminDept,
+                  normalizedAdminDept,
+                  directMatch,
+                  normalizedMatch,
+                  caseInsensitiveMatch,
+                  finalMatches: matches
+                });
+              }
+
+              return matches;
+            });
+          } catch (comparisonError) {
+            console.error('Error in department comparison:', comparisonError);
+            // If there's an error in comparison, allow access and log the error
+            hasAccess = true;
             if (process.env.NODE_ENV === 'development') {
-              console.log('🔍 Department Comparison:', {
-                userDept: cleanUserDept,
-                normalizedUserDept,
-                departmentId: cleanAdminDept,
-                normalizedAdminDept,
-                directMatch,
-                normalizedMatch,
-                caseInsensitiveMatch,
-                finalMatches: matches
-              });
+              console.warn('⚠️ Department comparison error, allowing access:', comparisonError);
             }
-
-            return matches;
-          });
+          }
 
           if (process.env.NODE_ENV === 'development') {
             console.log('🔍 Access Control Result:', {
@@ -294,7 +308,7 @@ export default function ApplicationDetail() {
             }
           }
         }
-        
+
         setUserData(userData);
 
         // Initialize department statuses
@@ -335,8 +349,20 @@ export default function ApplicationDetail() {
           let firstDept;
           
           // For department leads, set active tab to their department
-          if (!isCoreTeam && departmentId && userData.departments.includes(departmentId)) {
-            firstDept = departmentId;
+          if (!isCoreTeam && departmentId) {
+            // Use normalization to find matching department
+            const matchingDept = userData.departments.find(userDept => {
+              const normalizedUserDept = normalizeDepartmentId(userDept);
+              const normalizedAdminDept = normalizeDepartmentId(departmentId);
+              return normalizedUserDept === normalizedAdminDept;
+            });
+
+            if (matchingDept) {
+              firstDept = matchingDept;
+            } else {
+              // Fallback to first department if no match found
+              firstDept = userData.departments[0];
+            }
           } else {
             // For core team, use the first department
             firstDept = userData.departments[0];
@@ -546,9 +572,33 @@ export default function ApplicationDetail() {
           // Use normalization to compare department IDs
           const normalizedUserDept = normalizeDepartmentId(deptId);
           const normalizedAdminDept = normalizeDepartmentId(departmentId);
-          return normalizedUserDept === normalizedAdminDept;
+          const matches = normalizedUserDept === normalizedAdminDept;
+
+          // Debug visible departments filtering
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 Visible Departments Filter:', {
+              deptId,
+              normalizedUserDept,
+              departmentId,
+              normalizedAdminDept,
+              matches
+            });
+          }
+
+          return matches;
         })
       : userData.departments;
+
+    // Debug final visible departments
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Final Visible Departments:', {
+        isCoreTeam,
+        departmentId,
+        allUserDepartments: userData.departments,
+        visibleDepartments,
+        visibleCount: visibleDepartments.length
+      });
+    }
 
     return (
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
