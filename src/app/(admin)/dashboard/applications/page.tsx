@@ -33,8 +33,10 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
 import { departmentToFirestoreId, getDepartmentName, DepartmentId } from "@/lib/adminConfig";
+import { DEPARTMENT_IDS, normalizeDepartmentId, getAllDepartmentIds } from "@/lib/departmentMapping";
 import { Label } from "@/components/ui/label";
 import { ApplicationsTable } from "./components/ApplicationsTable";
+import { DepartmentStatistics } from "./components/DepartmentStatistics";
 import { Loading } from "@/components/ui/loading";
 
 // Status badge component
@@ -170,13 +172,15 @@ export default function AdminApplicationsPage() {
         const usersRef = collection(db, "users");
         let usersQuery;
 
-        // For department leads, only fetch applications for their department
+        // For department leads, fetch applications for their department using normalized ID
         if (!isCoreTeam && departmentId) {
+          const normalizedDeptId = normalizeDepartmentId(departmentId);
           usersQuery = query(
             usersRef,
-            where("departments", "array-contains", departmentId)
+            where("departments", "array-contains", normalizedDeptId)
           );
         } else {
+          // For core team, fetch all applications
           usersQuery = usersRef;
         }
 
@@ -187,10 +191,19 @@ export default function AdminApplicationsPage() {
         // Process user data
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
+
+          // Normalize department IDs in the application data
+          const normalizedDepartments = userData.departments?.map((dept: string) =>
+            normalizeDepartmentId(dept)
+          ) || [];
+
           applicationsData.push({
             id: doc.id,
             ...userData,
+            departments: normalizedDepartments,
             createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
+            applicationSubmittedAt: userData.applicationSubmittedAt?.toDate ?
+              userData.applicationSubmittedAt?.toDate() : undefined,
           } as ApplicationUser);
         });
 
@@ -251,10 +264,11 @@ export default function AdminApplicationsPage() {
     // Apply status filter
     if (statusFilter) {
       if (!isCoreTeam && departmentId) {
-        // For department leads, filter by department-specific status
+        // For department leads, filter by department-specific status using normalized ID
+        const normalizedDeptId = normalizeDepartmentId(departmentId);
         result = result.filter((app) => {
-          if (app.departmentStatuses && app.departmentStatuses[departmentId]) {
-            return app.departmentStatuses[departmentId].status === statusFilter;
+          if (app.departmentStatuses && app.departmentStatuses[normalizedDeptId]) {
+            return app.departmentStatuses[normalizedDeptId].status === statusFilter;
           }
           // Fallback to overall status if no department-specific status exists
           return app.status === statusFilter;
@@ -265,10 +279,11 @@ export default function AdminApplicationsPage() {
       }
     }
 
-    // Apply department filter (only for core team)
+    // Apply department filter with proper normalization
     if (isCoreTeam && departmentFilter !== "all") {
+      const normalizedFilter = normalizeDepartmentId(departmentFilter);
       result = result.filter((app) =>
-        app.departments?.includes(departmentFilter)
+        app.departments?.some(dept => normalizeDepartmentId(dept) === normalizedFilter)
       );
     }
     
@@ -486,6 +501,42 @@ export default function AdminApplicationsPage() {
     updateURLParams({ submitted: value });
   }, [updateURLParams]);
 
+  // Statistics dashboard filter handlers
+  const handleStatsDepartmentFilter = useCallback((departmentId: string) => {
+    setDepartmentFilter(departmentId);
+    updateURLParams({ department: departmentId });
+  }, [updateURLParams]);
+
+  const handleStatsStatusFilter = useCallback((status: string | null) => {
+    setStatusFilter(status);
+    updateURLParams({ status: status });
+  }, [updateURLParams]);
+
+  const handleStatsSubmissionFilter = useCallback((submission: string) => {
+    setSubmissionFilter(submission);
+    updateURLParams({ submitted: submission });
+  }, [updateURLParams]);
+
+  // Helper function to get department display name
+  const getDepartmentDisplayName = (deptId: string): string => {
+    // Map normalized IDs back to admin config format for display names
+    const reverseMapping: Record<string, DepartmentId> = {
+      'ai-ml': 'ai_ml',
+      'dev': 'development',
+      'open-source': 'open_source',
+      'game-dev': 'game_dev',
+      'cybersec': 'cybersec_blockchain',
+      'robotics': 'robotics_iot',
+      'events': 'event_ops',
+      'design': 'design_content',
+      'marketing': 'marketing',
+      'social-media': 'social_media'
+    };
+
+    const adminConfigId = reverseMapping[deptId];
+    return adminConfigId ? getDepartmentName(adminConfigId) : deptId;
+  };
+
   if (loading || !filtersInitialized || !isComponentMounted) {
     return (
       <div className="py-8">
@@ -495,7 +546,17 @@ export default function AdminApplicationsPage() {
   }
 
   return (
-    <div>
+    <div className="p-6 space-y-6">
+      {/* Department Statistics Dashboard */}
+      <DepartmentStatistics
+        applications={applications}
+        isCoreTeam={isCoreTeam}
+        currentDepartmentId={departmentId}
+        onFilterByDepartment={handleStatsDepartmentFilter}
+        onFilterByStatus={handleStatsStatusFilter}
+        onFilterBySubmission={handleStatsSubmissionFilter}
+      />
+
       <Card className="mb-6 dark:border-gray-800">
         <CardHeader className="pb-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -601,9 +662,9 @@ export default function AdminApplicationsPage() {
                       </SelectTrigger>
                       <SelectContent className="dark:bg-gray-900 dark:border-gray-700">
                         <SelectItem value="all">All Departments</SelectItem>
-                        {Object.entries(DEPARTMENTS).map(([id, name]) => (
-                          <SelectItem key={id} value={id}>
-                            {name}
+                        {getAllDepartmentIds().map((deptId) => (
+                          <SelectItem key={deptId} value={deptId}>
+                            {getDepartmentDisplayName(deptId)}
                           </SelectItem>
                         ))}
                       </SelectContent>

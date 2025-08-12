@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, CheckCircle, XCircle, HelpCircle, Clock, Filter } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -14,6 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { getDepartmentName, DepartmentId } from "@/lib/adminConfig";
+import { normalizeDepartmentId } from "@/lib/departmentMapping";
 
 type ApplicationStatus = "pending" | "approved" | "rejected" | "active";
 
@@ -82,10 +84,33 @@ export function ApplicationsTable({
     }
   };
 
+  // Helper function to get department display name
+  const getDepartmentDisplayName = (deptId: string): string => {
+    // Map normalized IDs back to admin config format for display names
+    const reverseMapping: Record<string, DepartmentId> = {
+      'ai-ml': 'ai_ml',
+      'dev': 'development',
+      'open-source': 'open_source',
+      'game-dev': 'game_dev',
+      'cybersec': 'cybersec_blockchain',
+      'robotics': 'robotics_iot',
+      'events': 'event_ops',
+      'design': 'design_content',
+      'marketing': 'marketing',
+      'social-media': 'social_media'
+    };
+
+    const adminConfigId = reverseMapping[deptId];
+    return adminConfigId ? getDepartmentName(adminConfigId) : deptId;
+  };
+
   // Function to determine which status to display
   const getDisplayStatus = (application: ApplicationUser): ApplicationStatus => {
-    if (departmentId && application.departmentStatuses && application.departmentStatuses[departmentId]) {
-      return application.departmentStatuses[departmentId].status as ApplicationStatus;
+    if (departmentId && application.departmentStatuses) {
+      const normalizedDeptId = normalizeDepartmentId(departmentId);
+      if (application.departmentStatuses[normalizedDeptId]) {
+        return application.departmentStatuses[normalizedDeptId].status as ApplicationStatus;
+      }
     }
     // Always default to pending if no department status is found, instead of using overall status
     return 'pending';
@@ -96,10 +121,11 @@ export function ApplicationsTable({
     if (!application.departmentStatuses || !application.departments) {
       return [];
     }
-    
-    return application.departments.filter(dept => 
-      application.departmentStatuses?.[dept]?.status === 'approved'
-    );
+
+    return application.departments.filter(dept => {
+      const normalizedDept = normalizeDepartmentId(dept);
+      return application.departmentStatuses?.[normalizedDept]?.status === 'approved';
+    });
   };
 
   // Status filter options
@@ -239,7 +265,7 @@ export function ApplicationsTable({
                                   : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
                               } rounded`}
                             >
-                              {dept.replace(/-/g, ' ')}
+                              {getDepartmentDisplayName(dept)}
                               {isApproved && " ✓"}
                             </span>
                           );
@@ -339,7 +365,7 @@ export function ApplicationsTable({
                                     : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
                                 } rounded`}
                               >
-                                {dept.replace(/-/g, ' ')}
+                                {getDepartmentDisplayName(dept)}
                                 {isApproved && " ✓"}
                               </span>
                             );
