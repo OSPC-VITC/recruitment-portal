@@ -108,6 +108,18 @@ export function normalizeDepartmentId(deptId: string): string {
     return normalizedMap[lowerDeptId];
   }
 
+  // Try with spaces replaced by hyphens
+  const hyphenatedId = deptId.replace(/\s+/g, '-').toLowerCase();
+  if (normalizedMap[hyphenatedId]) {
+    return normalizedMap[hyphenatedId];
+  }
+
+  // Try with underscores replaced by hyphens
+  const underscoreToHyphen = deptId.replace(/_/g, '-').toLowerCase();
+  if (normalizedMap[underscoreToHyphen]) {
+    return normalizedMap[underscoreToHyphen];
+  }
+
   // Return original if no mapping found
   return deptId;
 }

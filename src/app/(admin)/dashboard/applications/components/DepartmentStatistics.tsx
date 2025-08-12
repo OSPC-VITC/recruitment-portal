@@ -94,7 +94,7 @@ export function DepartmentStatistics({
 
         stats.totalApplications++;
 
-        // Check submission status
+        // Check submission status - explicit check for true value
         if (app.applicationSubmitted === true) {
           stats.submittedApplications++;
         } else {

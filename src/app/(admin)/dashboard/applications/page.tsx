@@ -93,6 +93,16 @@ export default function AdminApplicationsPage() {
   // 2. We need to convert this to the normalized Firestore format (e.g., 'events', 'design')
   const departmentId = department ? departmentToFirestoreId[department] : null;
 
+  // Debug logging for department access issues (temporary)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 Department Access Debug:', {
+      isCoreTeam,
+      rawDepartment: department,
+      mappedDepartmentId: departmentId,
+      mappingExists: department ? !!departmentToFirestoreId[department] : false
+    });
+  }
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -208,15 +218,55 @@ export default function AdminApplicationsPage() {
           applicationsData.push(applicationUser);
         });
 
+        // Debug logging for all applications (temporary)
+        if (process.env.NODE_ENV === 'development') {
+          const deptDistribution: Record<string, number> = {};
+          applicationsData.forEach(app => {
+            app.departments?.forEach(dept => {
+              deptDistribution[dept] = (deptDistribution[dept] || 0) + 1;
+            });
+          });
+          console.log('📊 All Applications Debug:', {
+            totalCount: applicationsData.length,
+            departmentDistribution: deptDistribution,
+            openSourceCount: deptDistribution['open-source'] || 0,
+            gameDevCount: deptDistribution['game-dev'] || 0
+          });
+        }
+
         // Set all applications for statistics
         setApplications(applicationsData);
 
         // For department leads, filter to their specific department
         if (!isCoreTeam && departmentId) {
           // departmentId is already in the correct Firestore format from departmentToFirestoreId mapping
-          const deptSpecificApps = applicationsData.filter(app =>
+          let deptSpecificApps = applicationsData.filter(app =>
             app.departments?.includes(departmentId)
           );
+
+          // Fallback: if no applications found, try with normalized department ID
+          if (deptSpecificApps.length === 0 && department) {
+            const normalizedDeptId = normalizeDepartmentId(department);
+            deptSpecificApps = applicationsData.filter(app =>
+              app.departments?.some(dept => normalizeDepartmentId(dept) === normalizedDeptId)
+            );
+          }
+
+          // Debug logging for department filtering (temporary)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 Department Filtering Debug:', {
+              rawDepartment: department,
+              departmentId,
+              totalApplications: applicationsData.length,
+              deptSpecificCount: deptSpecificApps.length,
+              sampleAppDepartments: applicationsData.slice(0, 5).map(app => ({
+                id: app.id,
+                departments: app.departments,
+                applicationSubmitted: app.applicationSubmitted
+              }))
+            });
+          }
+
           setDepartmentApplications(deptSpecificApps);
         } else {
           setDepartmentApplications(applicationsData);
@@ -251,11 +301,22 @@ export default function AdminApplicationsPage() {
     let result = [...baseApplications];
 
     // Separate submitted and non-submitted applications from the base result
-    const submitted = baseApplications.filter(app => app.applicationSubmitted === true);
-    const nonSubmitted = baseApplications.filter(app => app.applicationSubmitted !== true);
+    // Fix submission status logic to be more explicit and robust
+    const submitted = baseApplications.filter(app => isApplicationSubmitted(app));
+    const nonSubmitted = baseApplications.filter(app => !isApplicationSubmitted(app));
 
     setSubmittedApplications(submitted);
     setNonSubmittedApplications(nonSubmitted);
+
+    // Debug logging for submission status (temporary)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 Submission Status Debug:', {
+        totalApplications: baseApplications.length,
+        submittedCount: submitted.length,
+        nonSubmittedCount: nonSubmitted.length,
+        mathCheck: submitted.length + nonSubmitted.length === baseApplications.length
+      });
+    }
 
     // Apply submission filter first
     if (submissionFilter === "submitted") {
@@ -531,6 +592,12 @@ export default function AdminApplicationsPage() {
     setSubmissionFilter(submission);
     updateURLParams({ submitted: submission });
   }, [updateURLParams]);
+
+  // Helper function to determine if an application is submitted
+  const isApplicationSubmitted = (app: ApplicationUser): boolean => {
+    // Explicit check for true value
+    return app.applicationSubmitted === true;
+  };
 
   // Helper function to get department display name
   const getDepartmentDisplayName = (deptId: string): string => {
