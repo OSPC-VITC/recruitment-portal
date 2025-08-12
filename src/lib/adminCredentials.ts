@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminUser, AdminRole, DepartmentId } from "./adminConfig";
+import { AdminUser, DepartmentId } from "./adminConfig";
 
 /**
  * This file handles loading admin credentials from environment variables
@@ -214,9 +214,35 @@ const departmentLeadAdmins: AdminUser[] = [
   },
 ];
 
-// Filter out any admin users with missing email or password
+// Fallback department mapping for critical accounts (in case env vars are missing)
+const departmentFallbackMapping: Record<string, DepartmentId> = {
+  // Open Source department leads
+  'vpras@example.com': 'open_source',
+  'vijus@example.com': 'open_source',
+
+  // Game Dev department leads
+  'moham@example.com': 'game_dev',
+
+  // Add other critical mappings as needed
+};
+
+// Apply fallback department mapping if department is missing
+const applyDepartmentFallback = (admin: AdminUser): AdminUser => {
+  if (admin.role === 'dept_lead' && !admin.department && admin.email) {
+    const fallbackDept = departmentFallbackMapping[admin.email];
+    if (fallbackDept) {
+      console.warn(`🔧 Applied fallback department mapping for ${admin.email}: ${fallbackDept}`);
+      return { ...admin, department: fallbackDept };
+    }
+  }
+  return admin;
+};
+
+// Filter out any admin users with missing email or password, and apply fallbacks
 const filteredCoreTeamAdmins = coreTeamAdmins.filter(admin => admin.email && admin.password);
-const filteredDepartmentLeadAdmins = departmentLeadAdmins.filter(admin => admin.email && admin.password);
+const filteredDepartmentLeadAdmins = departmentLeadAdmins
+  .filter(admin => admin.email && admin.password)
+  .map(applyDepartmentFallback);
 
 // Combine all admin users
 export const adminCredentials: AdminUser[] = [...filteredCoreTeamAdmins, ...filteredDepartmentLeadAdmins];

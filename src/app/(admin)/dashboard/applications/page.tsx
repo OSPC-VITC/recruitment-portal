@@ -99,7 +99,30 @@ export default function AdminApplicationsPage() {
       isCoreTeam,
       rawDepartment: department,
       mappedDepartmentId: departmentId,
-      mappingExists: department ? !!departmentToFirestoreId[department] : false
+      mappingExists: department ? !!departmentToFirestoreId[department] : false,
+      allMappings: departmentToFirestoreId
+    });
+
+    // Log specific issue for Open Source and Game Dev
+    if (department === 'open_source' || department === 'game_dev') {
+      console.log(`🚨 Critical Department Debug for ${department}:`, {
+        department,
+        departmentId,
+        expectedMapping: department === 'open_source' ? 'open-source' : 'game-dev',
+        actualMapping: departmentToFirestoreId[department],
+        testDirectMapping: {
+          'open_source': departmentToFirestoreId['open_source'],
+          'game_dev': departmentToFirestoreId['game_dev']
+        }
+      });
+    }
+
+    // Test the mapping directly
+    console.log('🧪 Direct Mapping Test:', {
+      'open_source': departmentToFirestoreId['open_source'],
+      'game_dev': departmentToFirestoreId['game_dev'],
+      'marketing': departmentToFirestoreId['marketing'],
+      'design_content': departmentToFirestoreId['design_content']
     });
   }
 
@@ -221,16 +244,34 @@ export default function AdminApplicationsPage() {
         // Debug logging for all applications (temporary)
         if (process.env.NODE_ENV === 'development') {
           const deptDistribution: Record<string, number> = {};
+          const submissionStats = { submitted: 0, notSubmitted: 0 };
+
           applicationsData.forEach(app => {
+            // Count submission status
+            if (app.applicationSubmitted === true) {
+              submissionStats.submitted++;
+            } else {
+              submissionStats.notSubmitted++;
+            }
+
+            // Count department distribution
             app.departments?.forEach(dept => {
               deptDistribution[dept] = (deptDistribution[dept] || 0) + 1;
             });
           });
+
           console.log('📊 All Applications Debug:', {
             totalCount: applicationsData.length,
             departmentDistribution: deptDistribution,
+            submissionStats,
             openSourceCount: deptDistribution['open-source'] || 0,
-            gameDevCount: deptDistribution['game-dev'] || 0
+            gameDevCount: deptDistribution['game-dev'] || 0,
+            sampleApplications: applicationsData.slice(0, 3).map(app => ({
+              id: app.id,
+              departments: app.departments,
+              applicationSubmitted: app.applicationSubmitted,
+              submittedType: typeof app.applicationSubmitted
+            }))
           });
         }
 
@@ -238,17 +279,46 @@ export default function AdminApplicationsPage() {
         setApplications(applicationsData);
 
         // For department leads, filter to their specific department
-        if (!isCoreTeam && departmentId) {
-          // departmentId is already in the correct Firestore format from departmentToFirestoreId mapping
-          let deptSpecificApps = applicationsData.filter(app =>
-            app.departments?.includes(departmentId)
-          );
+        if (!isCoreTeam && department) {
+          let deptSpecificApps: ApplicationUser[] = [];
 
-          // Fallback: if no applications found, try with normalized department ID
-          if (deptSpecificApps.length === 0 && department) {
+          // Strategy 1: Use mapped department ID if available
+          if (departmentId) {
+            deptSpecificApps = applicationsData.filter(app =>
+              app.departments?.includes(departmentId)
+            );
+          }
+
+          // Strategy 2: If no results, try with raw department ID
+          if (deptSpecificApps.length === 0) {
+            deptSpecificApps = applicationsData.filter(app =>
+              app.departments?.includes(department)
+            );
+          }
+
+          // Strategy 3: If still no results, try with normalized department ID
+          if (deptSpecificApps.length === 0) {
             const normalizedDeptId = normalizeDepartmentId(department);
             deptSpecificApps = applicationsData.filter(app =>
               app.departments?.some(dept => normalizeDepartmentId(dept) === normalizedDeptId)
+            );
+          }
+
+          // Strategy 4: If still no results, try all possible variations
+          if (deptSpecificApps.length === 0) {
+            const possibleIds = [
+              department,
+              departmentId,
+              normalizeDepartmentId(department),
+              department.replace('_', '-'),
+              department.replace('-', '_')
+            ].filter(Boolean);
+
+            deptSpecificApps = applicationsData.filter(app =>
+              app.departments?.some(dept =>
+                possibleIds.includes(dept) ||
+                possibleIds.includes(normalizeDepartmentId(dept))
+              )
             );
           }
 
@@ -259,6 +329,11 @@ export default function AdminApplicationsPage() {
               departmentId,
               totalApplications: applicationsData.length,
               deptSpecificCount: deptSpecificApps.length,
+              filteringStrategies: {
+                strategy1_mappedId: departmentId ? applicationsData.filter(app => app.departments?.includes(departmentId)).length : 0,
+                strategy2_rawId: applicationsData.filter(app => app.departments?.includes(department)).length,
+                strategy3_normalized: applicationsData.filter(app => app.departments?.some(dept => normalizeDepartmentId(dept) === normalizeDepartmentId(department))).length
+              },
               sampleAppDepartments: applicationsData.slice(0, 5).map(app => ({
                 id: app.id,
                 departments: app.departments,
@@ -310,11 +385,23 @@ export default function AdminApplicationsPage() {
 
     // Debug logging for submission status (temporary)
     if (process.env.NODE_ENV === 'development') {
+      const submissionBreakdown = baseApplications.map(app => ({
+        id: app.id,
+        applicationSubmitted: app.applicationSubmitted,
+        type: typeof app.applicationSubmitted,
+        isSubmitted: isApplicationSubmitted(app)
+      }));
+
       console.log('📊 Submission Status Debug:', {
         totalApplications: baseApplications.length,
         submittedCount: submitted.length,
         nonSubmittedCount: nonSubmitted.length,
-        mathCheck: submitted.length + nonSubmitted.length === baseApplications.length
+        mathCheck: submitted.length + nonSubmitted.length === baseApplications.length,
+        submissionBreakdown: submissionBreakdown.slice(0, 5),
+        trueValues: submissionBreakdown.filter(app => app.applicationSubmitted === true).length,
+        falseValues: submissionBreakdown.filter(app => app.applicationSubmitted === false).length,
+        undefinedValues: submissionBreakdown.filter(app => app.applicationSubmitted === undefined).length,
+        nullValues: submissionBreakdown.filter(app => app.applicationSubmitted === null).length
       });
     }
 
@@ -598,6 +685,55 @@ export default function AdminApplicationsPage() {
     // Explicit check for true value
     return app.applicationSubmitted === true;
   };
+
+  // Validation function for data integrity (development only)
+  const validateDataIntegrity = () => {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    const validation = {
+      totalApplications: applications.length,
+      departmentApplications: departmentApplications.length,
+      submittedApplications: submittedApplications.length,
+      nonSubmittedApplications: nonSubmittedApplications.length,
+      filteredApplications: filteredApplications.length,
+
+      // Mathematical checks
+      submissionMathCheck: submittedApplications.length + nonSubmittedApplications.length === departmentApplications.length,
+
+      // Department distribution
+      departmentDistribution: applications.reduce((acc, app) => {
+        app.departments?.forEach(dept => {
+          acc[dept] = (acc[dept] || 0) + 1;
+        });
+        return acc;
+      }, {} as Record<string, number>),
+
+      // Current user context
+      userContext: {
+        isCoreTeam,
+        department,
+        departmentId,
+        isLoggedIn: !!department || isCoreTeam
+      }
+    };
+
+    console.log('🔍 Data Integrity Validation:', validation);
+
+    // Alert if math doesn't check out
+    if (!validation.submissionMathCheck) {
+      console.error('❌ SUBMISSION MATH ERROR:', {
+        submitted: submittedApplications.length,
+        nonSubmitted: nonSubmittedApplications.length,
+        total: departmentApplications.length,
+        expected: submittedApplications.length + nonSubmittedApplications.length
+      });
+    }
+  };
+
+  // Run validation when data changes
+  React.useEffect(() => {
+    validateDataIntegrity();
+  }, [applications, departmentApplications, submittedApplications, nonSubmittedApplications, filteredApplications]);
 
   // Helper function to get department display name
   const getDepartmentDisplayName = (deptId: string): string => {
