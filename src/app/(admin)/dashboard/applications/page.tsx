@@ -611,13 +611,20 @@ export default function AdminApplicationsPage() {
     <div className="p-6 space-y-6">
       {/* Department Statistics Dashboard */}
       <DepartmentStatistics
-        applications={applications}
+        applications={isCoreTeam ? applications : departmentApplications}
         isCoreTeam={isCoreTeam}
         currentDepartmentId={departmentId}
         onFilterByDepartment={handleStatsDepartmentFilter}
         onFilterByStatus={handleStatsStatusFilter}
         onFilterBySubmission={handleStatsSubmissionFilter}
       />
+
+      {/* Debug info for department leads (development only) */}
+      {process.env.NODE_ENV === 'development' && !isCoreTeam && department && (
+        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
+          Debug: Showing statistics for {departmentApplications.length} applications (Department: {department} → {departmentId})
+        </div>
+      )}
 
       <Card className="mb-6 dark:border-gray-800">
         <CardHeader className="pb-3">

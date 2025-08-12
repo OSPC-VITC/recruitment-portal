@@ -156,24 +156,97 @@ export function DepartmentStatistics({
   };
 
   const departmentStats = calculateDepartmentStats();
-  const totalStats = departmentStats.reduce((acc, dept) => ({
-    totalApplications: acc.totalApplications + dept.totalApplications,
-    submittedApplications: acc.submittedApplications + dept.submittedApplications,
-    nonSubmittedApplications: acc.nonSubmittedApplications + dept.nonSubmittedApplications,
-    pendingApplications: acc.pendingApplications + dept.pendingApplications,
-    approvedApplications: acc.approvedApplications + dept.approvedApplications,
-    rejectedApplications: acc.rejectedApplications + dept.rejectedApplications,
-  }), {
-    totalApplications: 0,
-    submittedApplications: 0,
-    nonSubmittedApplications: 0,
-    pendingApplications: 0,
-    approvedApplications: 0,
-    rejectedApplications: 0,
-  });
+
+  // Calculate overall statistics by counting each application only once
+  // (not summing department stats which would double-count multi-department applications)
+  const calculateOverallStats = () => {
+    const overallStats = {
+      totalApplications: 0,
+      submittedApplications: 0,
+      nonSubmittedApplications: 0,
+      pendingApplications: 0,
+      approvedApplications: 0,
+      rejectedApplications: 0,
+    };
+
+    // Count each application only once, regardless of how many departments they applied to
+    applications.forEach(app => {
+      if (!app.departments || app.departments.length === 0) {
+        return;
+      }
+
+      overallStats.totalApplications++;
+
+      // Check submission status - explicit check for true value only
+      if (app.applicationSubmitted === true) {
+        overallStats.submittedApplications++;
+      } else {
+        overallStats.nonSubmittedApplications++;
+      }
+
+      // For overall status, use the general application status
+      const status = app.status || 'pending';
+      switch (status) {
+        case 'approved':
+          overallStats.approvedApplications++;
+          break;
+        case 'rejected':
+          overallStats.rejectedApplications++;
+          break;
+        default:
+          overallStats.pendingApplications++;
+          break;
+      }
+    });
+
+    return overallStats;
+  };
+
+  const totalStats = calculateOverallStats();
+
+  // Validation and debugging (development only)
+  if (process.env.NODE_ENV === 'development') {
+    const submissionMathCheck = totalStats.submittedApplications + totalStats.nonSubmittedApplications === totalStats.totalApplications;
+    const statusMathCheck = totalStats.pendingApplications + totalStats.approvedApplications + totalStats.rejectedApplications === totalStats.totalApplications;
+
+    console.log('📊 Overall Statistics Validation:', {
+      totalApplications: totalStats.totalApplications,
+      submittedApplications: totalStats.submittedApplications,
+      nonSubmittedApplications: totalStats.nonSubmittedApplications,
+      submissionMathCheck,
+      statusMathCheck,
+      submissionBreakdown: {
+        submitted: totalStats.submittedApplications,
+        notSubmitted: totalStats.nonSubmittedApplications,
+        sum: totalStats.submittedApplications + totalStats.nonSubmittedApplications,
+        total: totalStats.totalApplications
+      }
+    });
+
+    if (!submissionMathCheck) {
+      console.error('❌ SUBMISSION MATH ERROR in Overall Statistics');
+    }
+    if (!statusMathCheck) {
+      console.error('❌ STATUS MATH ERROR in Overall Statistics');
+    }
+  }
 
   return (
     <div className="space-y-6 mb-8">
+      {/* Development validation indicator */}
+      {process.env.NODE_ENV === 'development' && isCoreTeam && (
+        <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded border">
+          <strong>Debug:</strong> Overall Statistics -
+          Submitted: {totalStats.submittedApplications},
+          Not Submitted: {totalStats.nonSubmittedApplications},
+          Total: {totalStats.totalApplications}
+          {totalStats.submittedApplications + totalStats.nonSubmittedApplications === totalStats.totalApplications ?
+            <span className="text-green-600 ml-2">✓ Math Check Passed</span> :
+            <span className="text-red-600 ml-2">✗ Math Check Failed</span>
+          }
+        </div>
+      )}
+
       {/* Overall Statistics */}
       {isCoreTeam && (
         <Card>
