@@ -128,18 +128,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const isDeptLead = adminUser?.role === 'dept_lead';
   const department = adminUser?.department;
 
-  // Debug logging for department assignment (temporary)
-  if (process.env.NODE_ENV === 'development' && adminUser) {
-    console.log('🔍 AdminAuth Debug:', {
-      email: adminUser.email,
-      role: adminUser.role,
-      department: adminUser.department,
-      isCoreTeam,
-      isDeptLead,
-      departmentExists: !!adminUser.department
-    });
-  }
-
   // Memoize the context value to prevent unnecessary re-renders
   const value = React.useMemo(
     () => ({

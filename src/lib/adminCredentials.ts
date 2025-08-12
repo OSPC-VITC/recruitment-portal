@@ -216,12 +216,12 @@ const departmentLeadAdmins: AdminUser[] = [
 
 // Fallback department mapping for critical accounts (in case env vars are missing)
 const departmentFallbackMapping: Record<string, DepartmentId> = {
-  // Open Source department leads
-  'vpras@example.com': 'open_source',
-  'vijus@example.com': 'open_source',
+  // Open Source department leads - use actual email patterns
+  'vpras': 'open_source',
+  'vijus': 'open_source',
 
   // Game Dev department leads
-  'moham@example.com': 'game_dev',
+  'moham': 'game_dev',
 
   // Add other critical mappings as needed
 };
@@ -229,9 +229,10 @@ const departmentFallbackMapping: Record<string, DepartmentId> = {
 // Apply fallback department mapping if department is missing
 const applyDepartmentFallback = (admin: AdminUser): AdminUser => {
   if (admin.role === 'dept_lead' && !admin.department && admin.email) {
-    const fallbackDept = departmentFallbackMapping[admin.email];
+    // Try to match by email prefix (before @)
+    const emailPrefix = admin.email.split('@')[0].toLowerCase();
+    const fallbackDept = departmentFallbackMapping[emailPrefix];
     if (fallbackDept) {
-      console.warn(`🔧 Applied fallback department mapping for ${admin.email}: ${fallbackDept}`);
       return { ...admin, department: fallbackDept };
     }
   }
