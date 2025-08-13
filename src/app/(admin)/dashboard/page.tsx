@@ -226,16 +226,21 @@ export default function AdminDashboardPage() {
           setDepartmentApplications(applicationsData);
         }
 
-        // Get recent applications - use the same data but limit to 5 most recent
-        const recentApps = applicationsData
-          .sort((a, b) => {
-            const dateA = a.applicationSubmittedAt || a.createdAt || new Date(0);
-            const dateB = b.applicationSubmittedAt || b.createdAt || new Date(0);
-            return dateB.getTime() - dateA.getTime();
-          })
-          .slice(0, 5);
+        // Get recent applications - only for core team members
+        if (isCoreTeam) {
+          const recentApps = applicationsData
+            .sort((a, b) => {
+              const dateA = a.applicationSubmittedAt || a.createdAt || new Date(0);
+              const dateB = b.applicationSubmittedAt || b.createdAt || new Date(0);
+              return dateB.getTime() - dateA.getTime();
+            })
+            .slice(0, 5);
 
-        setRecentApplications(recentApps);
+          setRecentApplications(recentApps);
+        } else {
+          // Clear recent applications for department leads
+          setRecentApplications([]);
+        }
         
 
       } catch (error) {
@@ -294,41 +299,43 @@ export default function AdminDashboardPage() {
       />
 
       {/* Recent Applications and Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Applications */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold dark:text-white">Recent Applications</h2>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard/applications">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+      <div className={`grid grid-cols-1 gap-6 ${isCoreTeam ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
+        {/* Recent Applications - Only visible for core team */}
+        {isCoreTeam && (
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold dark:text-white">Recent Applications</h2>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/applications">
+                  View All
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
 
-          <Card className="dark:border-gray-800">
-            {recentApplications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <FileText className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No applications yet</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
-                  Applications will appear here once students start applying.
-                </p>
-              </div>
-            ) : (
-              <div>
-                {recentApplications.map((application) => (
-                  <RecentApplicationCard
-                    key={application.id}
-                    application={application}
-                    departmentId={departmentId || undefined}
-                  />
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
+            <Card className="dark:border-gray-800">
+              {recentApplications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <FileText className="h-12 w-12 text-gray-400 dark:text-gray-600 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No applications yet</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
+                    Applications will appear here once students start applying.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  {recentApplications.map((application) => (
+                    <RecentApplicationCard
+                      key={application.id}
+                      application={application}
+                      departmentId={departmentId || undefined}
+                    />
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div>
