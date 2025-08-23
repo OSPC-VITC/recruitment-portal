@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection rules
+    match /users/{userId} {
+      // Users can read and write their own documents
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Admin users can read all user documents
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/adminSessions/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/adminSessions/$(request.auth.uid)).data.isActive == true &&
+        get(/databases/$(database)/documents/adminSessions/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+    
+    // Applications collection rules
+    match /applications/{userId} {
+      // Users can read and write their own application documents
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Admin users can read all application documents
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/adminSessions/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/adminSessions/$(request.auth.uid)).data.isActive == true &&
+        get(/databases/$(database)/documents/adminSessions/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+    
+    // Admin sessions collection rules
+    match /adminSessions/{sessionId} {
+      // Only authenticated users can read their own admin session
+      allow read: if request.auth != null && request.auth.uid == sessionId;
+      
+      // Allow creation of admin sessions (for login)
+      allow create: if request.auth != null;
+      
+      // Allow updates to admin sessions (for refresh)
+      allow update: if request.auth != null && request.auth.uid == sessionId;
+    }
+    
+    // Form fields collection rules (if used)
+    match /formFields/{fieldId} {
+      // Allow read access to authenticated users
+      allow read: if request.auth != null;
+      
+      // Only admins can write form fields
+      allow write: if request.auth != null && 
+        exists(/databases/$(database)/documents/adminSessions/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/adminSessions/$(request.auth.uid)).data.isActive == true;
+    }
+    
+    // App settings collection rules (if used)
+    match /appSettings/{settingId} {
+      // Allow read access to authenticated users
+      allow read: if request.auth != null;
+      
+      // Only admins can write app settings
+      allow write: if request.auth != null && 
+        exists(/databases/$(database)/documents/adminSessions/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/adminSessions/$(request.auth.uid)).data.isActive == true;
+    }
+  }
+}

@@ -32,10 +32,10 @@ export const registerUser = async (
 ) => {
   try {
     // Validate email domain - allow any email in production
-    const isValidEmail = process.env.NODE_ENV === 'production' ? true : email.endsWith('@vitstudent.ac.in');
+    const isValidEmail = process.env.NODE_ENV === 'production' ? true : (email.endsWith('@vitstudent.ac.in') || email.endsWith('@gmail.com'));
     
     if (!isValidEmail) {
-      throw new Error('Please use your college email address (@vitstudent.ac.in)');
+      throw new Error('Please use your VIT student email (@vitstudent.ac.in) or your email (@gmail.com)');
     }
     
     // Create user in Firebase Auth

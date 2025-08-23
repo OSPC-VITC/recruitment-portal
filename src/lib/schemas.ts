@@ -11,9 +11,9 @@ export const registrationSchema = z.object({
       if (process.env.NODE_ENV === 'production') return true;
       
       // In development, enforce college email
-      return email.endsWith("@vitstudent.ac.in") || email.endsWith("@admin.ospc.com");
+      return email.endsWith("@vitstudent.ac.in") || email.endsWith("@gmail.com") || email.endsWith("@admin.ospc.com");
     }, {
-      message: "Must use your college email address (@vitstudent.ac.in)"
+      message: "Must use your college email address (@vitstudent.ac.in) or your email (@gmail.com)"
     }),
   regNo: z
     .string()

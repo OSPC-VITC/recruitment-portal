@@ -86,9 +86,9 @@ function RegistrationForm() {
       // Clean the email (remove spaces, convert to lowercase)
       const cleanEmail = email.trim().toLowerCase();
       
-      // Check if the email is from VIT (@vitstudent.ac.in)
-      if (!cleanEmail.endsWith("@vitstudent.ac.in")) {
-        setError("Please use your VIT student email (@vitstudent.ac.in)");
+      // Check if the email is from VIT (@vitstudent.ac.in) or Gmail (@gmail.com)
+      if (!cleanEmail.endsWith("@vitstudent.ac.in") && !cleanEmail.endsWith("@gmail.com")) {
+        setError("Please use your VIT student email (@vitstudent.ac.in) or your email (@gmail.com)");
         setIsSubmitting(false);
         return;
       }
@@ -170,7 +170,7 @@ function RegistrationForm() {
             id="email" 
             type="email" 
             {...register("email")} 
-            placeholder="you@vitstudent.ac.in" 
+            placeholder="Your email" 
             className="h-10 bg-white/70 dark:bg-gray-800/70 border-gray-300/50 dark:border-gray-700/50 focus:border-primary focus:ring-primary/20 dark:text-gray-100" 
           />
           {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
