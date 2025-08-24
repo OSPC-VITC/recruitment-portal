@@ -506,6 +506,66 @@ export default function AdminApplicationsPage() {
       toast.error("Unable to export applications", { id: "admin-apps-export-error" });
     }
   };
+
+  const exportNonSelected = () => {
+    try {
+      // Build CSV headers
+      let headers = ["Name", "Email", "Phone", "Registration No", "Applied Departments"];
+      
+      // Filter applications to only include those where applicationSubmitted is false
+      const nonSubmittedApplications = filteredApplications.filter(app => {
+        return app.applicationSubmitted === false;
+      });
+      
+      // Build CSV data
+      const csvData = nonSubmittedApplications.map(app => {
+        // Get all departments the user applied to
+        const appliedDepartments = app.departments || [];
+        
+        // Format the department names
+        const formattedDepartments = appliedDepartments
+          .map(d => getDepartmentName(d as DepartmentId))
+          .join(", ");
+        
+        return [
+          app.name || "",
+          app.email || "",
+          app.phone || "",
+          app.regNo || "",
+          formattedDepartments
+        ];
+      });
+      
+      // Only proceed if there are non-submitted applications
+      if (csvData.length === 0) {
+        toast.info("No non-submitted applications found to export", { id: "admin-apps-export-empty" });
+        return;
+      }
+      
+      // Convert to CSV format
+      const csvContent = [
+        headers.join(","),
+        ...csvData.map(row => row.join(","))
+      ].join("\n");
+      
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `non_submitted_applicants_${format(new Date(), 'yyyyMMdd')}.csv`);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success(`${csvData.length} non-submitted applicants exported successfully`, { id: "admin-apps-export-success" });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Unable to export applications", { id: "admin-apps-export-error" });
+    }
+  };
   
   // Pagination functions
   const handlePageChange = (page: number) => {
@@ -635,6 +695,15 @@ export default function AdminApplicationsPage() {
               >
                 <Download className="h-3 w-3 md:h-4 md:w-4" />
                 Export Selected
+              </Button>
+              <Button 
+                onClick={exportNonSelected}
+                variant="outline" 
+                size="sm"
+                className="dark:border-gray-700 dark:text-gray-300 gap-2 text-xs md:text-sm h-8 md:h-9"
+              >
+                <Download className="h-3 w-3 md:h-4 md:w-4" />
+                Export Non-Submitted
               </Button>
             </div>
           </div>
