@@ -205,6 +205,10 @@ export default function AdminApplicationsPage() {
 
           const applicationUser: ApplicationUser = {
             id: doc.id,
+            name: userData.name || '',
+            email: userData.email || '',
+            regNo: userData.regNo || '',
+            phone: userData.phone || '',
             ...userData,
             departments: normalizedDepartments,
             createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
@@ -328,8 +332,25 @@ export default function AdminApplicationsPage() {
           return app.status === statusFilter;
         });
       } else {
-        // For core team, filter by overall status
-        result = result.filter((app) => app.status === statusFilter);
+        // For core team, filter by overall status or by any department-specific status
+        result = result.filter((app) => {
+          // Check overall status first
+          if (app.status === statusFilter) return true;
+          
+          // Then check if any department has the specified status
+          if (app.departmentStatuses) {
+            // If department filter is active, only check that department's status
+            if (departmentFilter !== "all") {
+              return app.departmentStatuses[departmentFilter]?.status === statusFilter;
+            }
+            
+            // Otherwise check if any department has the status
+            return Object.values(app.departmentStatuses).some(
+              deptStatus => deptStatus.status === statusFilter
+            );
+          }
+          return false;
+        });
       }
     }
 
