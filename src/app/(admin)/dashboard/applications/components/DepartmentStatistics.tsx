@@ -27,7 +27,7 @@ interface ApplicationUser {
   departmentStatuses?: Record<string, any>;
   applicationSubmitted?: boolean;
   applicationSubmittedAt?: Date;
-  createdAt: Date;
+  createdAt?: Date; // Changed from required to optional
 }
 
 interface DepartmentStats {
@@ -189,16 +189,40 @@ export function DepartmentStatistics({
       // For overall status, use the general application status
       // Users without departments are considered pending
       const status = user.status || 'pending';
-      switch (status) {
-        case 'approved':
-          overallStats.approvedApplications++;
-          break;
-        case 'rejected':
-          overallStats.rejectedApplications++;
-          break;
-        default:
-          overallStats.pendingApplications++;
-          break;
+      
+      // First check if the user has any department with approved status
+      let hasApproved = false;
+      let hasRejected = false;
+      
+      // Check department-specific statuses
+      if (user.departmentStatuses) {
+        Object.values(user.departmentStatuses).forEach(deptStatus => {
+          if (deptStatus.status === 'approved') {
+            hasApproved = true;
+          } else if (deptStatus.status === 'rejected') {
+            hasRejected = true;
+          }
+        });
+      }
+      
+      // Prioritize department-specific status over overall status
+      if (hasApproved) {
+        overallStats.approvedApplications++;
+      } else if (hasRejected) {
+        overallStats.rejectedApplications++;
+      } else {
+        // Fall back to overall status if no department-specific status
+        switch (status) {
+          case 'approved':
+            overallStats.approvedApplications++;
+            break;
+          case 'rejected':
+            overallStats.rejectedApplications++;
+            break;
+          default:
+            overallStats.pendingApplications++;
+            break;
+        }
       }
     });
 
@@ -219,6 +243,8 @@ export function DepartmentStatistics({
       totalApplications: totalStats.totalApplications,
       submittedApplications: totalStats.submittedApplications,
       nonSubmittedApplications: totalStats.nonSubmittedApplications,
+      approvedApplications: totalStats.approvedApplications,  // Added for debugging
+      rejectedApplications: totalStats.rejectedApplications,  // Added for debugging
       submissionMathCheck,
       statusMathCheck,
       submissionBreakdown: {
@@ -230,6 +256,14 @@ export function DepartmentStatistics({
       userBreakdown: {
         withDepartments: usersToCount.filter(u => u.departments && u.departments.length > 0).length,
         withoutDepartments: usersToCount.filter(u => !u.departments || u.departments.length === 0).length
+      },
+      // Added detailed status breakdown for debugging
+      statusBreakdown: {
+        pending: totalStats.pendingApplications,
+        approved: totalStats.approvedApplications,
+        rejected: totalStats.rejectedApplications,
+        sum: totalStats.pendingApplications + totalStats.approvedApplications + totalStats.rejectedApplications,
+        total: totalStats.totalApplications
       }
     });
 

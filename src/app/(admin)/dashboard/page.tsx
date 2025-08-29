@@ -14,7 +14,8 @@ import {
   HelpCircle,
   Clock,
   Database,
-  Settings
+  Settings,
+  RefreshCw
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
@@ -29,6 +30,8 @@ interface ApplicationUser {
   id: string;
   name?: string;
   email?: string;
+  regNo?: string;
+  phone?: string;
   departments?: string[];
   applicationSubmitted?: boolean;
   status?: string;
@@ -125,16 +128,15 @@ function RecentApplicationCard({ application, departmentId }: { application: any
 
 export default function AdminDashboardPage() {
   const { isCoreTeam, department } = useAdminAuth();
-  const router = useRouter();
-
-  // State for applications data
-  const [allUsers, setAllUsers] = useState<ApplicationUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<ApplicationUser[]>([]);
   const [departmentApplications, setDepartmentApplications] = useState<ApplicationUser[]>([]);
-  const [recentApplications, setRecentApplications] = useState<ApplicationUser[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<ApplicationUser[]>([]);
+  const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0); // Add state for force refresh
+  const router = useRouter();
 
-  // Get the department Firestore ID for filtering
+  // Fix the department ID mapping chain
   const departmentId = department ? departmentToFirestoreId[department] : null;
 
   // Simple debug for critical departments (only in development)
@@ -146,6 +148,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     async function fetchApplicationsData() {
       try {
+        // Reset state
         setLoading(true);
 
         // Always fetch ALL applications for accurate statistics
@@ -251,7 +254,12 @@ export default function AdminDashboardPage() {
     }
 
     fetchApplicationsData();
-  }, [isCoreTeam, department, departmentId]);
+  }, [isCoreTeam, department, departmentId, refreshKey]);
+
+  // Handle refresh action
+  const handleRefresh = useCallback(() => {
+    setRefreshKey(prev => prev + 1); // Increment to trigger refresh
+  }, []);
 
   // Navigation handlers for statistics filtering
   const handleStatsDepartmentFilter = useCallback((departmentId: string) => {
@@ -280,11 +288,24 @@ export default function AdminDashboardPage() {
     <div className="p-6 space-y-6">
       {/* Dashboard Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Overview of applications and statistics
-          {!isCoreTeam && department && ` for ${getDepartmentName(department)}`}
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Overview of applications and statistics
+              {!isCoreTeam && department && ` for ${getDepartmentName(department)}`}
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
       {/* Department Statistics - Main Feature */}
