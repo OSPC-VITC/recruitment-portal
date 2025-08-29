@@ -298,38 +298,44 @@ export function DepartmentStatistics({
 
       {/* Overall Statistics */}
       {isCoreTeam && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-2 border-blue-200 dark:border-blue-800 shadow-md">
+          <CardHeader className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800">
+            <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
               <TrendingUp className="h-5 w-5" />
               Overall Statistics
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{totalStats.totalApplications}</div>
-                <div className="text-sm text-gray-600">Total Applications</div>
+              <div className="text-center p-2 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalStats.totalApplications}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total Applications</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totalStats.submittedApplications}</div>
-                <div className="text-sm text-gray-600">Submitted</div>
+              <div className="text-center p-2 border rounded-md bg-green-50 dark:bg-green-900/20">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totalStats.submittedApplications}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Submitted</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{totalStats.nonSubmittedApplications}</div>
-                <div className="text-sm text-gray-600">Incomplete</div>
+              <div className="text-center p-2 border rounded-md bg-orange-50 dark:bg-orange-900/20">
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{totalStats.nonSubmittedApplications}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Incomplete</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{totalStats.pendingApplications}</div>
-                <div className="text-sm text-gray-600">Pending</div>
+              <div className="text-center p-2 border rounded-md bg-yellow-50 dark:bg-yellow-900/20">
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{totalStats.pendingApplications}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Pending</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totalStats.approvedApplications}</div>
-                <div className="text-sm text-gray-600">Approved</div>
+              <div className="text-center p-2 border rounded-md bg-green-50 dark:bg-green-900/20">
+                <div className="flex items-center justify-center mb-1">
+                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-1" />
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{totalStats.approvedApplications}</div>
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Approved</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{totalStats.rejectedApplications}</div>
-                <div className="text-sm text-gray-600">Rejected</div>
+              <div className="text-center p-2 border rounded-md bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-center justify-center mb-1">
+                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-1" />
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">{totalStats.rejectedApplications}</div>
+                </div>
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Rejected</div>
               </div>
             </div>
           </CardContent>
@@ -408,28 +414,28 @@ export function DepartmentStatistics({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-auto p-1 flex flex-col items-center hover:bg-green-50"
+                      className="h-auto p-1 flex flex-col items-center hover:bg-green-50 border border-green-200 dark:border-green-900"
                       onClick={() => {
                         onFilterByDepartment(dept.departmentId);
                         onFilterByStatus('approved');
                       }}
                     >
-                      <CheckCircle className="h-3 w-3 text-green-600 mb-1" />
-                      <span className="text-green-600 font-medium">{dept.approvedApplications}</span>
+                      <CheckCircle className="h-4 w-4 text-green-600 mb-1" />
+                      <span className="text-green-600 font-medium text-sm">{dept.approvedApplications}</span>
                       <span className="text-gray-500">Approved</span>
                     </Button>
                     
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-auto p-1 flex flex-col items-center hover:bg-red-50"
+                      className="h-auto p-1 flex flex-col items-center hover:bg-red-50 border border-red-200 dark:border-red-900"
                       onClick={() => {
                         onFilterByDepartment(dept.departmentId);
                         onFilterByStatus('rejected');
                       }}
                     >
-                      <XCircle className="h-3 w-3 text-red-600 mb-1" />
-                      <span className="text-red-600 font-medium">{dept.rejectedApplications}</span>
+                      <XCircle className="h-4 w-4 text-red-600 mb-1" />
+                      <span className="text-red-600 font-medium text-sm">{dept.rejectedApplications}</span>
                       <span className="text-gray-500">Rejected</span>
                     </Button>
                   </div>
