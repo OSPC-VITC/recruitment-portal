@@ -116,6 +116,8 @@ export default function AdminApplicationsPage() {
   const [filteredApplications, setFilteredApplications] = useState<ApplicationUser[]>([]); // Filtered for table display
   const [submittedApplications, setSubmittedApplications] = useState<ApplicationUser[]>([]);
   const [nonSubmittedApplications, setNonSubmittedApplications] = useState<ApplicationUser[]>([]);
+  const [approvedApplications, setApprovedApplications] = useState<ApplicationUser[]>([]);
+  const [rejectedApplications, setRejectedApplications] = useState<ApplicationUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtersInitialized, setFiltersInitialized] = useState(false);
 
@@ -297,8 +299,6 @@ export default function AdminApplicationsPage() {
 
     setSubmittedApplications(submitted);
     setNonSubmittedApplications(nonSubmitted);
-
-
 
     // Apply submission filter first
     if (submissionFilter === "submitted") {
@@ -626,6 +626,65 @@ export default function AdminApplicationsPage() {
     updateURLParams({ department: value });
   }, [updateURLParams]);
 
+  // Separate useEffect to calculate status counts
+  useEffect(() => {
+    if (!filtersInitialized) return;
+    
+    // For department leads, only show counts for their department
+    if (!isCoreTeam && departmentId) {
+      const approved = departmentApplications.filter(app => 
+        app.departmentStatuses?.[departmentId]?.status === 'approved'
+      );
+      const rejected = departmentApplications.filter(app => 
+        app.departmentStatuses?.[departmentId]?.status === 'rejected'
+      );
+      setApprovedApplications(approved);
+      setRejectedApplications(rejected);
+    } else {
+      // For core team, consider both overall status and department-specific statuses
+      const approved = departmentApplications.filter(app => {
+        // Check overall status
+        if (app.status === 'approved') return true;
+        
+        // Check if any department has approved status
+        if (app.departmentStatuses) {
+          // If department filter is active, only check that department's status
+          if (departmentFilter !== "all") {
+            return app.departmentStatuses[departmentFilter]?.status === 'approved';
+          }
+          
+          // Otherwise check if any department has approved status
+          return Object.values(app.departmentStatuses).some(
+            deptStatus => deptStatus.status === 'approved'
+          );
+        }
+        return false;
+      });
+      
+      const rejected = departmentApplications.filter(app => {
+        // Check overall status
+        if (app.status === 'rejected') return true;
+        
+        // Check if any department has rejected status
+        if (app.departmentStatuses) {
+          // If department filter is active, only check that department's status
+          if (departmentFilter !== "all") {
+            return app.departmentStatuses[departmentFilter]?.status === 'rejected';
+          }
+          
+          // Otherwise check if any department has rejected status
+          return Object.values(app.departmentStatuses).some(
+            deptStatus => deptStatus.status === 'rejected'
+          );
+        }
+        return false;
+      });
+      
+      setApprovedApplications(approved);
+      setRejectedApplications(rejected);
+    }
+  }, [departmentApplications, departmentFilter, isCoreTeam, departmentId, filtersInitialized]);
+
   const handleSortChange = useCallback((value: string) => {
     setSortBy(value);
     updateURLParams({ sort: value });
@@ -846,6 +905,14 @@ export default function AdminApplicationsPage() {
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Not Submitted: </span>
                 <span className="font-semibold text-orange-600 dark:text-orange-400">{nonSubmittedApplications.length}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Approved: </span>
+                <span className="font-semibold text-green-600 dark:text-green-400">{approvedApplications.length}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Rejected: </span>
+                <span className="font-semibold text-red-600 dark:text-red-400">{rejectedApplications.length}</span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-600 dark:text-gray-400">Filtered Results: </span>
