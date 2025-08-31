@@ -41,7 +41,9 @@ import {
   Calendar,
   ExternalLink,
   AlertTriangle,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { 
@@ -154,6 +156,10 @@ export default function ApplicationDetail() {
   const [departmentStatuses, setDepartmentStatuses] = useState<Record<string, DepartmentStatus>>({});
   const [currentDepartmentStatus, setCurrentDepartmentStatus] = useState<ApplicationStatus>("pending");
   const [currentDepartmentFeedback, setCurrentDepartmentFeedback] = useState("");
+
+  // Navigation list (prev/next)
+  const [navIds, setNavIds] = useState<string[]>([]);
+  const [navIndex, setNavIndex] = useState<number>(-1);
   
   // Fetch application data
   useEffect(() => {
@@ -417,6 +423,43 @@ export default function ApplicationDetail() {
           
           setFormFields(formFieldsObject);
         }
+
+        // Build navigation list (respecting access rules and consistent sorting)
+        try {
+          const usersSnap = await getDocs(collection(db, "users"));
+          const candidates: { id: string; date: Date; departments: string[] }[] = [];
+          usersSnap.forEach((u) => {
+            const data = u.data() as any;
+            const userDepts: string[] = Array.isArray(data?.departments) ? data.departments : [];
+            if (!userDepts || userDepts.length === 0) return; // only applicants
+
+            // Filter by department for dept leads
+            if (!isCoreTeam && departmentId) {
+              const normalizedAdmin = normalizeDepartmentId(departmentId);
+              const hasMatchingDept = userDepts
+                .map((d: string) => normalizeDepartmentId(d))
+                .includes(normalizedAdmin);
+              if (!hasMatchingDept) return;
+            }
+
+            const submittedAt: Date | null = data?.applicationSubmittedAt?.toDate 
+              ? data.applicationSubmittedAt.toDate() 
+              : null;
+            const createdAt: Date = data?.createdAt?.toDate 
+              ? data.createdAt.toDate() 
+              : new Date(0);
+
+            candidates.push({ id: u.id, date: submittedAt || createdAt, departments: userDepts });
+          });
+
+          candidates.sort((a, b) => b.date.getTime() - a.date.getTime()); // newest first
+          setNavIds(candidates.map(c => c.id));
+        } catch (e) {
+          // Non-fatal for page load
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Navigation list build failed:', e);
+          }
+        }
       } catch (error) {
         console.error("Error fetching application data:", error);
         toast.error("Unable to load application data", { id: "admin-app-load-error" });
@@ -427,6 +470,15 @@ export default function ApplicationDetail() {
     
     fetchData();
   }, [id, router, isCoreTeam, departmentId]);
+
+  // Update current position in navigation when ids or id changes
+  useEffect(() => {
+    if (navIds && navIds.length > 0) {
+      setNavIndex(navIds.indexOf(id));
+    } else {
+      setNavIndex(-1);
+    }
+  }, [navIds, id]);
   
   // Handle department-specific status update
   const updateDepartmentStatus = async () => {
@@ -776,6 +828,30 @@ export default function ApplicationDetail() {
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Applications
           </Link>
         </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              const prevId = navIndex > 0 ? navIds[navIndex - 1] : null;
+              if (prevId) router.push(`/dashboard/applications/${prevId}`);
+            }}
+            disabled={navIndex <= 0}
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              const nextId = navIndex >= 0 && navIndex < navIds.length - 1 ? navIds[navIndex + 1] : null;
+              if (nextId) router.push(`/dashboard/applications/${nextId}`);
+            }}
+            disabled={navIndex < 0 || navIndex >= navIds.length - 1}
+          >
+            Next <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
       </div>
       
       {unauthorized ? (
