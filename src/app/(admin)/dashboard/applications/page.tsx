@@ -205,6 +205,18 @@ export default function AdminApplicationsPage() {
             normalizeDepartmentId(dept)
           );
 
+          // Normalize departmentStatuses keys to standard ids (e.g., game_dev -> game-dev)
+          let normalizedDepartmentStatuses: Record<string, { status: string }> | undefined = undefined;
+          if (userData.departmentStatuses && typeof userData.departmentStatuses === 'object') {
+            normalizedDepartmentStatuses = {};
+            Object.entries(userData.departmentStatuses as Record<string, { status: string }>)
+              .forEach(([key, value]) => {
+                const normKey = normalizeDepartmentId(key);
+                // Prefer latest/explicit value if duplicates collapse to same key
+                normalizedDepartmentStatuses![normKey] = value;
+              });
+          }
+
           const applicationUser: ApplicationUser = {
             id: doc.id,
             name: userData.name || '',
@@ -213,6 +225,8 @@ export default function AdminApplicationsPage() {
             phone: userData.phone || '',
             ...userData,
             departments: normalizedDepartments,
+            // Override with normalized statuses so downstream checks are consistent
+            departmentStatuses: normalizedDepartmentStatuses,
             createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
             applicationSubmittedAt: userData.applicationSubmittedAt?.toDate ?
               userData.applicationSubmittedAt?.toDate() : undefined,

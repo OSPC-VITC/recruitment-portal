@@ -169,10 +169,22 @@ export default function AdminDashboardPage() {
             normalizeDepartmentId(dept)
           );
 
+          // Normalize departmentStatuses keys to standard ids (e.g., game_dev -> game-dev)
+          let normalizedDepartmentStatuses: Record<string, { status: string; updatedAt?: any }> | undefined = undefined;
+          if (userData.departmentStatuses && typeof userData.departmentStatuses === 'object') {
+            normalizedDepartmentStatuses = {};
+            Object.entries(userData.departmentStatuses as Record<string, { status: string; updatedAt?: any }>)
+              .forEach(([key, value]) => {
+                const normKey = normalizeDepartmentId(key);
+                normalizedDepartmentStatuses![normKey] = value;
+              });
+          }
+
           const applicationUser: ApplicationUser = {
             id: doc.id,
             ...userData,
             departments: normalizedDepartments,
+            departmentStatuses: normalizedDepartmentStatuses,
             createdAt: userData.createdAt?.toDate ? userData.createdAt?.toDate() : new Date(),
             applicationSubmittedAt: userData.applicationSubmittedAt?.toDate ?
               userData.applicationSubmittedAt?.toDate() : undefined,
