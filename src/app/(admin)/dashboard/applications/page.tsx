@@ -93,6 +93,10 @@ export default function AdminApplicationsPage() {
   // 2. We need to convert this to the normalized Firestore format (e.g., 'events', 'design')
   const departmentId = department ? departmentToFirestoreId[department] : null;
 
+  // Robust fallback: if mapping is missing from env/config, normalize the raw department id
+  // This ensures departments like 'open_source' or mistakenly set values still resolve correctly
+  const effectiveDepartmentId = departmentId || (department ? normalizeDepartmentId(department) : null);
+
   // Simple debug for critical departments (only in development)
   if (process.env.NODE_ENV === 'development' && (department === 'open_source' || department === 'game_dev')) {
     console.log(`Department Access: ${department} → ${departmentId}`);
@@ -138,7 +142,7 @@ export default function AdminApplicationsPage() {
     if (!filtersInitialized) {
       const urlSearch = searchParams.get('search') || "";
       const urlStatus = searchParams.get('status');
-      const urlDepartment = searchParams.get('department') || (!isCoreTeam && departmentId ? departmentId : "all");
+      const urlDepartment = searchParams.get('department') || (!isCoreTeam && effectiveDepartmentId ? effectiveDepartmentId : "all");
       const urlSort = searchParams.get('sort') || "newest";
       const urlSubmission = searchParams.get('submitted') || "all";
 
@@ -156,7 +160,7 @@ export default function AdminApplicationsPage() {
     if (filtersInitialized) {
       const urlSearch = searchParams.get('search') || "";
       const urlStatus = searchParams.get('status');
-      const urlDepartment = searchParams.get('department') || (!isCoreTeam && departmentId ? departmentId : "all");
+      const urlDepartment = searchParams.get('department') || (!isCoreTeam && effectiveDepartmentId ? effectiveDepartmentId : "all");
       const urlSort = searchParams.get('sort') || "newest";
       const urlSubmission = searchParams.get('submitted') || "all";
 
@@ -335,12 +339,12 @@ export default function AdminApplicationsPage() {
 
     // Apply status filter
     if (statusFilter) {
-      if (!isCoreTeam && departmentId) {
+      if (!isCoreTeam && effectiveDepartmentId) {
         // For department leads, filter by department-specific status
         // departmentId is already in the correct format
         result = result.filter((app) => {
-          if (app.departmentStatuses && app.departmentStatuses[departmentId]) {
-            return app.departmentStatuses[departmentId].status === statusFilter;
+          if (app.departmentStatuses && app.departmentStatuses[effectiveDepartmentId]) {
+            return app.departmentStatuses[effectiveDepartmentId].status === statusFilter;
           }
           // Fallback to overall status if no department-specific status exists
           return app.status === statusFilter;
@@ -407,7 +411,7 @@ export default function AdminApplicationsPage() {
     setFilteredApplications(result);
     setTotalPages(Math.max(1, Math.ceil(result.length / itemsPerPage)));
     setCurrentPage(1); // Reset to first page when filters change
-  }, [departmentApplications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, departmentId, filtersInitialized]);
+  }, [departmentApplications, searchQuery, statusFilter, departmentFilter, sortBy, submissionFilter, isCoreTeam, effectiveDepartmentId, filtersInitialized]);
   
   // Get current page items
   const getCurrentItems = () => {
@@ -450,7 +454,7 @@ export default function AdminApplicationsPage() {
 
   // Reset all filters
   const resetFilters = () => {
-    const defaultDepartment = !isCoreTeam && departmentId ? departmentId : "all";
+    const defaultDepartment = !isCoreTeam && effectiveDepartmentId ? effectiveDepartmentId : "all";
 
     setSearchQuery("");
     setStatusFilter(null);
@@ -476,8 +480,11 @@ export default function AdminApplicationsPage() {
       // Filter applications to only include those with approved statuses in at least one department
       const selectedApplications = filteredApplications.filter(app => {
         // Department-specific filtering
-        if (!isCoreTeam && departmentId && app.departmentStatuses?.[departmentId]?.status === 'approved') {
-          return true;
+        if (!isCoreTeam) {
+          const targetDept = effectiveDepartmentId || null;
+          if (targetDept && app.departmentStatuses?.[targetDept]?.status === 'approved') {
+            return true;
+          }
         }
         
         // For core team, include users approved in any department
@@ -499,7 +506,7 @@ export default function AdminApplicationsPage() {
         
         // Format the department names
         const formattedDepartments = approvedDepartments
-          .map(d => getDepartmentName(d as DepartmentId))
+          .map(d => getDepartmentDisplayName(d))
           .join(", ");
         
         return [
@@ -647,10 +654,10 @@ export default function AdminApplicationsPage() {
     // For department leads, only show counts for their department
     if (!isCoreTeam && departmentId) {
       const approved = departmentApplications.filter(app => 
-        app.departmentStatuses?.[departmentId]?.status === 'approved'
+        app.departmentStatuses?.[effectiveDepartmentId]?.status === 'approved'
       );
       const rejected = departmentApplications.filter(app => 
-        app.departmentStatuses?.[departmentId]?.status === 'rejected'
+        app.departmentStatuses?.[effectiveDepartmentId]?.status === 'rejected'
       );
       setApprovedApplications(approved);
       setRejectedApplications(rejected);
@@ -697,7 +704,7 @@ export default function AdminApplicationsPage() {
       setApprovedApplications(approved);
       setRejectedApplications(rejected);
     }
-  }, [departmentApplications, departmentFilter, isCoreTeam, departmentId, filtersInitialized]);
+  }, [departmentApplications, departmentFilter, isCoreTeam, effectiveDepartmentId, filtersInitialized]);
 
   const handleSortChange = useCallback((value: string) => {
     setSortBy(value);
@@ -755,7 +762,7 @@ export default function AdminApplicationsPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Applications</h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Showing {filteredApplications.length} of {departmentApplications.length} applications
-            {!isCoreTeam && department && ` for ${getDepartmentDisplayName(departmentId || department)}`}
+            {!isCoreTeam && department && ` for ${getDepartmentDisplayName(effectiveDepartmentId || department)}`}
           </p>
         </div>
       </div>
@@ -941,7 +948,7 @@ export default function AdminApplicationsPage() {
       <ApplicationsTable 
         applications={getCurrentItems()} 
         loading={loading} 
-        departmentId={departmentId}
+        departmentId={effectiveDepartmentId}
         onStatusFilter={handleStatusChange}
         activeStatus={statusFilter}
       />
