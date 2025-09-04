@@ -109,16 +109,15 @@ export function DepartmentStatistics({
           status = app.departmentStatuses[normalizedDeptId].status || status;
         }
 
-        switch (status) {
-          case 'approved':
-            stats.approvedApplications++;
-            break;
-          case 'rejected':
-            stats.rejectedApplications++;
-            break;
-          default:
-            stats.pendingApplications++;
-            break;
+        // Count status metrics only for submitted applications when pending
+        // Approved/Rejected are counted regardless of submission flag (backward compatibility)
+        if (status === 'approved') {
+          stats.approvedApplications++;
+        } else if (status === 'rejected') {
+          stats.rejectedApplications++;
+        } else if (status === 'pending' && app.applicationSubmitted === true) {
+          // Only treat as pending if the application was actually submitted
+          stats.pendingApplications++;
         }
       });
     });
@@ -186,8 +185,7 @@ export function DepartmentStatistics({
         overallStats.nonSubmittedApplications++;
       }
 
-      // For overall status, use the general application status
-      // Users without departments are considered pending
+      // For overall status, use the general application status if present
       const status = user.status || 'pending';
       
       // First check if the user has any department with approved status
@@ -205,23 +203,22 @@ export function DepartmentStatistics({
         });
       }
       
-      // Prioritize department-specific status over overall status
-      if (hasApproved) {
-        overallStats.approvedApplications++;
-      } else if (hasRejected) {
-        overallStats.rejectedApplications++;
-      } else {
-        // Fall back to overall status if no department-specific status
-        switch (status) {
-          case 'approved':
+      // Only classify into pending/approved/rejected for submitted applications
+      if (user.applicationSubmitted === true) {
+        // Prioritize department-specific status over overall status
+        if (hasApproved) {
+          overallStats.approvedApplications++;
+        } else if (hasRejected) {
+          overallStats.rejectedApplications++;
+        } else {
+          // Fall back to overall status if no department-specific status
+          if (status === 'approved') {
             overallStats.approvedApplications++;
-            break;
-          case 'rejected':
+          } else if (status === 'rejected') {
             overallStats.rejectedApplications++;
-            break;
-          default:
+          } else if (status === 'pending') {
             overallStats.pendingApplications++;
-            break;
+          }
         }
       }
     });
@@ -234,7 +231,8 @@ export function DepartmentStatistics({
   // Validation and debugging (development only)
   if (process.env.NODE_ENV === 'development') {
     const submissionMathCheck = totalStats.submittedApplications + totalStats.nonSubmittedApplications === totalStats.totalApplications;
-    const statusMathCheck = totalStats.pendingApplications + totalStats.approvedApplications + totalStats.rejectedApplications === totalStats.totalApplications;
+    // Status counts now reflect only submitted applications
+    const statusMathCheck = totalStats.pendingApplications + totalStats.approvedApplications + totalStats.rejectedApplications === totalStats.submittedApplications;
     const usersToCount = allUsers || applications;
 
     console.log('📊 Overall Statistics Validation:', {
@@ -263,7 +261,7 @@ export function DepartmentStatistics({
         approved: totalStats.approvedApplications,
         rejected: totalStats.rejectedApplications,
         sum: totalStats.pendingApplications + totalStats.approvedApplications + totalStats.rejectedApplications,
-        total: totalStats.totalApplications
+        submittedTotal: totalStats.submittedApplications
       }
     });
 
