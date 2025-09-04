@@ -86,8 +86,12 @@ export function DepartmentStatistics({
         return;
       }
 
-      app.departments.forEach(deptId => {
-        const normalizedDeptId = normalizeDepartmentId(deptId);
+      // Deduplicate departments after normalization to prevent double counting
+      const uniqueNormalizedDepartments = Array.from(new Set(
+        app.departments.map((deptId) => normalizeDepartmentId(deptId))
+      ));
+
+      uniqueNormalizedDepartments.forEach(normalizedDeptId => {
         const stats = departmentStatsMap.get(normalizedDeptId);
 
         if (!stats) {
