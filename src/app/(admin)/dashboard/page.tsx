@@ -15,8 +15,11 @@ import {
   Clock,
   Database,
   Settings,
-  RefreshCw
+  RefreshCw,
+  Download
 } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
@@ -268,6 +271,91 @@ export default function AdminDashboardPage() {
     fetchApplicationsData();
   }, [isCoreTeam, department, departmentId, refreshKey]);
 
+  // Helper to get department display name from normalized id
+  const getDepartmentDisplayName = (deptId: string): string => {
+    const reverseMapping: Record<string, DepartmentId> = {
+      'ai-ml': 'ai_ml',
+      'dev': 'development',
+      'open-source': 'open_source',
+      'game-dev': 'game_dev',
+      'cybersec': 'cybersec_blockchain',
+      'robotics': 'robotics_iot',
+      'events': 'event_ops',
+      'design': 'design_content',
+      'marketing': 'marketing',
+      'social-media': 'social_media'
+    };
+
+    const adminConfigId = reverseMapping[deptId];
+    return adminConfigId ? getDepartmentName(adminConfigId) : deptId;
+  };
+
+  // Export selected (approved) applications for department leads
+  const exportSelectedForDepartment = () => {
+    try {
+      if (isCoreTeam) {
+        toast.info("This export is available for department leads.");
+        return;
+      }
+
+      if (!departmentId) {
+        toast.error("No department context found");
+        return;
+      }
+
+      const selectedApplications = departmentApplications.filter(app => {
+        return app.departmentStatuses?.[departmentId]?.status === 'approved';
+      });
+
+      if (selectedApplications.length === 0) {
+        toast.info("No selected applications found to export");
+        return;
+      }
+
+      // Build CSV headers
+      const headers = ["Name", "Email", "Phone", "Registration No", "Selected Departments"]; 
+
+      // Build CSV rows
+      const csvData = selectedApplications.map(app => {
+        const approvedDepartments = (app.departments || []).filter(dept => 
+          app.departmentStatuses?.[dept]?.status === 'approved'
+        );
+
+        const formattedDepartments = approvedDepartments
+          .map(d => getDepartmentDisplayName(d))
+          .join(", ");
+
+        return [
+          app.name || "",
+          app.email || "",
+          app.phone || "",
+          app.regNo || "",
+          formattedDepartments
+        ];
+      });
+
+      const csvContent = [
+        headers.join(","),
+        ...csvData.map(row => row.map(cell => String(cell).replace(/\n/g, ' ').replace(/"/g, '""')).join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `selected_applicants_${format(new Date(), 'yyyyMMdd')}.csv`);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`${csvData.length} selected applicants exported successfully`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Unable to export applications");
+    }
+  };
+
   // Handle refresh action
   const handleRefresh = useCallback(() => {
     setRefreshKey(prev => prev + 1); // Increment to trigger refresh
@@ -384,6 +472,20 @@ export default function AdminDashboardPage() {
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </Button>
+              {/* Export selected applications - visible only for department leads */}
+              {!isCoreTeam && (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between"
+                  onClick={exportSelectedForDepartment}
+                >
+                  <div className="flex items-center">
+                    <Download className="h-4 w-4 mr-2" />
+                    <span>Export Selected</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
               <Button variant="outline" asChild className="w-full justify-between">
                 <Link href="/dashboard/questions">
                   <div className="flex items-center">
