@@ -23,7 +23,7 @@ import { format } from "date-fns";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import { useAdminAuth } from "@/lib/AdminAuthContext";
-import { departmentToFirestoreId, getDepartmentName, DepartmentId } from "@/lib/adminConfig";
+import { departmentToFirestoreId, getDepartmentName } from "@/lib/adminConfig";
 import { DEPARTMENT_IDS, normalizeDepartmentId } from "@/lib/departmentMapping";
 import { Loading } from "@/components/ui/loading";
 import { DepartmentStatistics } from "./applications/components/DepartmentStatistics";
@@ -271,25 +271,6 @@ export default function AdminDashboardPage() {
     fetchApplicationsData();
   }, [isCoreTeam, department, departmentId, refreshKey]);
 
-  // Helper to get department display name from normalized id
-  const getDepartmentDisplayName = (deptId: string): string => {
-    const reverseMapping: Record<string, DepartmentId> = {
-      'ai-ml': 'ai_ml',
-      'dev': 'development',
-      'open-source': 'open_source',
-      'game-dev': 'game_dev',
-      'cybersec': 'cybersec_blockchain',
-      'robotics': 'robotics_iot',
-      'events': 'event_ops',
-      'design': 'design_content',
-      'marketing': 'marketing',
-      'social-media': 'social_media'
-    };
-
-    const adminConfigId = reverseMapping[deptId];
-    return adminConfigId ? getDepartmentName(adminConfigId) : deptId;
-  };
-
   // Export selected (approved) applications for department leads
   const exportSelectedForDepartment = () => {
     try {
@@ -312,27 +293,16 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      // Build CSV headers
-      const headers = ["Name", "Email", "Phone", "Registration No", "Selected Departments"]; 
+      // Build CSV headers (no department column for leads)
+      const headers = ["Name", "Email", "Phone", "Registration No"]; 
 
       // Build CSV rows
-      const csvData = selectedApplications.map(app => {
-        const approvedDepartments = (app.departments || []).filter(dept => 
-          app.departmentStatuses?.[dept]?.status === 'approved'
-        );
-
-        const formattedDepartments = approvedDepartments
-          .map(d => getDepartmentDisplayName(d))
-          .join(", ");
-
-        return [
-          app.name || "",
-          app.email || "",
-          app.phone || "",
-          app.regNo || "",
-          formattedDepartments
-        ];
-      });
+      const csvData = selectedApplications.map(app => [
+        app.name || "",
+        app.email || "",
+        app.phone || "",
+        app.regNo || ""
+      ]);
 
       const csvContent = [
         headers.join(","),
